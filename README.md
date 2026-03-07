@@ -1,6 +1,6 @@
 # Bug Bounty Simulator Lab
 
-A full-stack web application for practicing ethical hacking and vulnerability assessment in a safe, controlled environment.
+A Vuln-Matrix is the full-stack web application for practicing ethical hacking and vulnerability assessment in a safe, controlled environment.
 
 ## Features
 
