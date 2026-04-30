@@ -40,7 +40,7 @@
         
         <!-- Dashboard Header -->
         <div class="dashboard-header">
-            <h1>Welcome Back, {{ current_user.username if current_user else 'User' }}!</h1>
+            <h1 id="welcomeMessage">Welcome Back, {% if current_user %}{{ current_user.username }}{% else %}User{% endif %}!</h1>
             <p>Continue your cybersecurity journey</p>
         </div>
 
@@ -48,54 +48,26 @@
         <div class="dashboard-container">
             <!-- Stats Section -->
             <div class="dashboard-stats">
-                <h2>📈 Your Stats</h2>
+                <h2> Your Stats</h2>
                 <div class="dashboard-stats-grid">
                     <div class="stat-card">
-                        <div class="stat-icon">🏆</div>
+                        <div class="stat-icon"></div>
                         <div class="stat-info">
-                            <h3>{{ current_user.score if current_user else 0 }}</h3>
+                            <h3 id="userScore">{% if current_user %}{{ current_user.score or 0 }}{% else %}0{% endif %}</h3>
                             <p>Total Score</p>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">✅</div>
+                        <div class="stat-icon"></div>
                         <div class="stat-info">
-                            <h3>{{ current_user.labs_completed if current_user else 0 }}</h3>
+                            <h3 id="labsCompleted">{% if current_user %}{{ current_user.labs_completed or 0 }}{% else %}0{% endif %}</h3>
                             <p>Labs Completed</p>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">🎯</div>
+                        <div class="stat-icon"></div>
                         <div class="stat-info">
-                            <h3>{{ vulnerabilities|length }}</h3>
-                            <p>Available Labs</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stats Section -->
-            <div class="dashboard-stats">
-                <h2>📊 Your Stats</h2>
-                <div class="dashboard-stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon">🏆</div>
-                        <div class="stat-info">
-                            <h3>{{ current_user.score if current_user else 0 }}</h3>
-                            <p>Total Score</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-info">
-                            <h3>{{ current_user.labs_completed if current_user else 0 }}</h3>
-                            <p>Labs Completed</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">🎯</div>
-                        <div class="stat-info">
-                            <h3>{{ vulnerabilities|length }}</h3>
+                            <h3>12</h3>
                             <p>Available Labs</p>
                         </div>
                     </div>
@@ -108,13 +80,18 @@
                 <div class="labs-container">
                     {% if vulnerabilities %}
                         {% for vuln in vulnerabilities %}
-                        <div class="lab-card {{ 'completed' if vuln.id in completed_labs else '' }}" onclick="openLab('{{ vuln.id }}')">
+                        <div class="lab-card {{ 'completed' if vuln.flag_type in completed_labs else '' }}" 
+                             id="lab-card-{{ vuln.flag_type }}"
+                             data-flag-type="{{ vuln.flag_type }}"
+                             onclick="openLab('{{ vuln.id }}')">
                             <div class="lab-header">
                                 <h3>{{ vuln.title }}</h3>
                                 <div class="lab-badges">
                                     <span class="difficulty {{ vuln.difficulty.lower() }}">{{ vuln.difficulty }}</span>
-                                    {% if vuln.id in completed_labs %}
-                                    <span class="completed-badge">✓ Completed</span>
+                                    {% if vuln.flag_type in completed_labs %}
+                                    <span class="completed-badge" id="badge-{{ vuln.flag_type }}">✓ Completed</span>
+                                    {% else %}
+                                    <span class="completed-badge" id="badge-{{ vuln.flag_type }}" style="display:none;">✓ Completed</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -153,6 +130,7 @@
 
 <!-- AI Chat Button -->
 <div class="ai-chat-button" id="ai-chat-button" onclick="openChat()">
+    <i class="fas fa-robot"></i>
 </div>
 
 <!-- AI Chat Widget -->
@@ -160,10 +138,12 @@
     <div class="chat-header">
         <div class="chat-title">
             <div class="chat-logo">
+                <i class="fas fa-robot"></i>
             </div>
             <span class="chat-title-text">Mohanlal</span>
         </div>
         <div class="close-btn" onclick="closeChat()">
+            <i class="fas fa-times"></i>
         </div>
     </div>
     <div class="chat-body">
@@ -176,6 +156,7 @@
         <div class="chat-input">
             <input type="text" id="chat-input" placeholder="Ask me about cybersecurity..." onkeypress="handleChatEnter(event)">
             <button onclick="sendMessage()" id="send-btn">
+                <i class="fas fa-paper-plane"></i>
             </button>
         </div>
     </div>
@@ -183,57 +164,50 @@
 {% endblock %}
 
 {% block scripts %}
+{% if current_user %}
+<script>
+window.serverUserData = {
+    id: {{ current_user.id or 0 }},
+    username: {{ (current_user.username or 'User')|tojson }},
+    name: {{ (current_user.name or '')|tojson }},
+    email: {{ (current_user.email or '')|tojson }},
+    score: {{ current_user.score or 0 }},
+    labs_completed: {{ current_user.labs_completed or 0 }}
+};
+</script>
+{% endif %}
 <script>
 function openLab(labId) {
-    window.location.href = `/lab/${labId}`;
+    window.location.href = '/lab/' + labId;
 }
 
 function openReconTool(toolType) {
-    // Create recon tool modal
     const modal = document.createElement('div');
     modal.className = 'recon-modal';
-    modal.innerHTML = `
-        <div class="recon-modal-content">
-            <div class="recon-modal-header">
-                <h3>🔍 ${getToolName(toolType)}</h3>
-                <span class="recon-close" onclick="closeReconModal()">&times;</span>
-            </div>
-            <div class="recon-modal-body">
-                <div class="recon-input-section">
-                    <label>Target:</label>
-                    <input type="text" id="reconTarget" placeholder="Enter domain or IP address">
-                    <button onclick="runReconTool('${toolType}')" class="recon-run-btn">🚀 Run Scan</button>
-                </div>
-                <div class="recon-output-section">
-                    <h4>Results:</h4>
-                    <div id="reconOutput" class="recon-output">Enter a target and click 'Run Scan' to start reconnaissance...</div>
-                </div>
-            </div>
-        </div>
-    `;
+    modal.innerHTML = '<div class="recon-modal-content"><div class="recon-modal-header"><h3>🔍 ' + getToolName(toolType) + '</h3><span class="recon-close" onclick="closeReconModal()">&times;</span></div><div class="recon-modal-body"><div class="recon-input-section"><label>Target:</label><input type="text" id="reconTarget" placeholder="Enter domain or IP address"><button onclick="runReconTool(\'' + toolType + '\')" class="recon-run-btn">🚀 Run Scan</button></div><div class="recon-output-section"><h4>Results:</h4><div id="reconOutput" class="recon-output">Enter a target and click Run Scan to start reconnaissance...</div></div></div></div>';
     document.body.appendChild(modal);
 }
 
 function getToolName(toolType) {
-    const names = {
-        'nmap': 'Nmap Port Scanner',
-        'whois': 'WHOIS Lookup',
-        'subdomain': 'Subdomain Finder',
-        'osint': 'OSINT Gathering'
+    var names = {
+        nmap: 'Nmap Port Scanner',
+        whois: 'WHOIS Lookup',
+        subdomain: 'Subdomain Finder',
+        osint: 'OSINT Gathering'
     };
     return names[toolType] || 'Reconnaissance Tool';
 }
 
 function closeReconModal() {
-    const modal = document.querySelector('.recon-modal');
+    var modal = document.querySelector('.recon-modal');
     if (modal) {
         modal.remove();
     }
 }
 
 function runReconTool(toolType) {
-    const target = document.getElementById('reconTarget').value.trim();
-    const output = document.getElementById('reconOutput');
+    var target = document.getElementById('reconTarget').value.trim();
+    var output = document.getElementById('reconOutput');
     
     if (!target) {
         output.innerHTML = '<span style="color: #ef4444;">Please enter a target domain or IP address.</span>';
@@ -242,86 +216,37 @@ function runReconTool(toolType) {
     
     output.innerHTML = '<span style="color: #60a5fa;">Running reconnaissance... Please wait.</span>';
     
-    // Simulate recon tool execution
-    setTimeout(() => {
-        const results = generateReconResults(toolType, target);
+    setTimeout(function() {
+        var results = generateReconResults(toolType, target);
         output.innerHTML = results;
     }, 2000);
 }
 
 function generateReconResults(toolType, target) {
-    const results = {
-        'nmap': `
-            <div class="recon-result">
-                <h5>🌐 Nmap Scan Results for ${target}:</h5>
-                <pre>Starting Nmap scan...
-Host is up (0.045s latency)
-PORT     STATE SERVICE
-22/tcp   open  ssh
-80/tcp   open  http
-443/tcp  open  https
-3306/tcp open  mysql
-
-Nmap done: 1 IP address scanned</pre>
-            </div>
-        `,
-        'whois': `
-            <div class="recon-result">
-                <h5>📋 WHOIS Information for ${target}:</h5>
-                <pre>Domain Name: ${target.toUpperCase()}
-Registrar: Example Registrar Inc.
-Creation Date: 2020-01-15
-Expiry Date: 2025-01-15
-Name Servers:
-  ns1.example.com
-  ns2.example.com
-Status: Active</pre>
-            </div>
-        `,
-        'subdomain': `
-            <div class="recon-result">
-                <h5>🔗 Subdomains found for ${target}:</h5>
-                <pre>www.${target}
-mail.${target}
-ftp.${target}
-api.${target}
-admin.${target}
-dev.${target}
-test.${target}</pre>
-            </div>
-        `,
-        'osint': `
-            <div class="recon-result">
-                <h5>🕵️ OSINT Results for ${target}:</h5>
-                <pre>Social Media Presence:
-• LinkedIn: Found company profile
-• Twitter: @${target.split('.')[0]}
-• Facebook: Business page active
-
-Technology Stack:
-• Web Server: Apache/2.4.41
-• Framework: PHP 7.4
-• Database: MySQL
-• CDN: Cloudflare</pre>
-            </div>
-        `
-    };
+    var results = {};
+    
+    results.nmap = '<div class="recon-result"><h5>🌐 Nmap Scan Results for ' + target + ':</h5><pre>Starting Nmap scan...\nHost is up (0.045s latency)\nPORT     STATE SERVICE\n22/tcp   open  ssh\n80/tcp   open  http\n443/tcp  open  https\n3306/tcp open  mysql\n\nNmap done: 1 IP address scanned</pre></div>';
+    
+    results.whois = '<div class="recon-result"><h5>📋 WHOIS Information for ' + target + ':</h5><pre>Domain Name: ' + target.toUpperCase() + '\nRegistrar: Example Registrar Inc.\nCreation Date: 2020-01-15\nExpiry Date: 2025-01-15\nName Servers:\n  ns1.example.com\n  ns2.example.com\nStatus: Active</pre></div>';
+    
+    results.subdomain = '<div class="recon-result"><h5>🔗 Subdomains found for ' + target + ':</h5><pre>www.' + target + '\nmail.' + target + '\nftp.' + target + '\napi.' + target + '\nadmin.' + target + '\ndev.' + target + '\ntest.' + target + '</pre></div>';
+    
+    results.osint = '<div class="recon-result"><h5>🕵️ OSINT Results for ' + target + ':</h5><pre>Social Media Presence:\n- LinkedIn: Found company profile\n- Twitter: @' + target.split('.')[0] + '\n- Facebook: Business page active\n\nTechnology Stack:\n- Web Server: Apache/2.4.41\n- Framework: PHP 7.4\n- Database: MySQL\n- CDN: Cloudflare</pre></div>';
     
     return results[toolType] || '<span style="color: #ef4444;">Tool not implemented yet.</span>';
 }
 
-// AI Chat functionality
 function openChat() {
-    const chatWidget = document.getElementById('ai-chat-widget');
-    const chatButton = document.getElementById('ai-chat-button');
+    var chatWidget = document.getElementById('ai-chat-widget');
+    var chatButton = document.getElementById('ai-chat-button');
     
     chatWidget.classList.add('active');
     chatButton.style.display = 'none';
 }
 
 function closeChat() {
-    const chatWidget = document.getElementById('ai-chat-widget');
-    const chatButton = document.getElementById('ai-chat-button');
+    var chatWidget = document.getElementById('ai-chat-widget');
+    var chatButton = document.getElementById('ai-chat-button');
     
     chatWidget.classList.remove('active');
     chatButton.style.display = 'flex';
@@ -334,113 +259,335 @@ function handleChatEnter(event) {
 }
 
 function sendMessage() {
-    const input = document.getElementById('chat-input');
-    const message = input.value.trim();
+    var input = document.getElementById('chat-input');
+    var message = input.value.trim();
     
     if (!message) return;
     
-    // Add user message
     addMessage(message, 'user');
     input.value = '';
     
-    // Show JARVIS-like typing indicator
     showTypingIndicator();
     
-    // Send to AI
     fetch('/api/ai-chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
         },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ message: message })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
         hideTypingIndicator();
         typeMessage(data.response || 'Sorry, I had trouble understanding that.', 'ai');
     })
-    .catch(() => {
+    .catch(function() {
         hideTypingIndicator();
-        typeMessage('Sorry, I\'m having trouble right now. Please try again later.', 'ai');
+        typeMessage('Sorry, I am having trouble right now. Please try again later.', 'ai');
     });
 }
 
 function showTypingIndicator() {
-    const messages = document.getElementById('chat-messages');
-    const typingDiv = document.createElement('div');
+    var messages = document.getElementById('chat-messages');
+    var typingDiv = document.createElement('div');
     typingDiv.className = 'ai-message typing-indicator';
     typingDiv.id = 'typing-indicator';
-    typingDiv.innerHTML = `
-        <i class="fas fa-robot"></i>
-        <span class="typing-text">Mohanlal is typing...</span>
-    `;
+    typingDiv.innerHTML = '<i class="fas fa-robot"></i><span class="typing-text">Mohanlal is typing...</span>';
     messages.appendChild(typingDiv);
     messages.scrollTop = messages.scrollHeight;
 }
 
 function hideTypingIndicator() {
-    const indicator = document.getElementById('typing-indicator');
+    var indicator = document.getElementById('typing-indicator');
     if (indicator) {
         indicator.remove();
     }
 }
 
 function typeMessage(text, sender) {
-    const messages = document.getElementById('chat-messages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `${sender}-message`;
+    var messages = document.getElementById('chat-messages');
+    var messageDiv = document.createElement('div');
+    messageDiv.className = sender + '-message';
     
     if (sender === 'ai') {
-        messageDiv.innerHTML = `<i class="fas fa-robot"></i><span class="typing-text"></span>`;
+        messageDiv.innerHTML = '<i class="fas fa-robot"></i><span class="typing-text"></span>';
     } else {
-        messageDiv.innerHTML = `<span class="typing-text"></span>`;
+        messageDiv.innerHTML = '<span class="typing-text"></span>';
     }
     
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
     
-    const textSpan = messageDiv.querySelector('.typing-text');
-    let i = 0;
+    var textSpan = messageDiv.querySelector('.typing-text');
+    var i = 0;
     
     function typeChar() {
         if (i < text.length) {
             textSpan.textContent += text.charAt(i);
             i++;
-            setTimeout(typeChar, 30); // Typing speed
+            setTimeout(typeChar, 30);
         }
     }
     
-    setTimeout(typeChar, 200); // Delay before typing starts
+    setTimeout(typeChar, 200);
 }
 
-function addMessage(text, sender, isTyping = false) {
-    const messages = document.getElementById('chat-messages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `${sender}-message${isTyping ? ' typing' : ''}`;
+function addMessage(text, sender) {
+    var messages = document.getElementById('chat-messages');
+    var messageDiv = document.createElement('div');
+    messageDiv.className = sender + '-message';
     
     if (sender === 'ai') {
-        messageDiv.innerHTML = `<i class="fas fa-robot"></i><span>${text}</span>`;
+        messageDiv.innerHTML = '<i class="fas fa-robot"></i><span>' + text + '</span>';
     } else {
-        messageDiv.innerHTML = `<span>${text}</span>`;
+        messageDiv.innerHTML = '<span>' + text + '</span>';
     }
     
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
 }
 
-// Fix button functionality
 document.addEventListener('DOMContentLoaded', function() {
-    // Logout button
-    const logoutBtn = document.getElementById('logout-btn');
+    // Always fetch fresh data from server on load (never trust stale cache)
+    loadUserData();
+    // Refresh lab completion tick marks on load
+    refreshLabCompletion(null);
+    // Poll every 30s for background updates
+    setInterval(function() {
+        refreshUserData();
+        refreshLabCompletion(null);
+    }, 30000);
+    
+    var logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function() {
             localStorage.removeItem('access_token');
-            localStorage.removeItem('username');
-            window.location.href = '/';
+            localStorage.removeItem('currentUser');
+            // Clear server-side session too
+            window.location.href = '/logout';
         });
     }
-    
 });
+
+function loadUserData() {
+    // /api/me works with JWT Bearer token OR Flask session cookie
+    var token = localStorage.getItem('access_token');
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    fetch('/api/me', { headers: headers })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.authenticated === false || data.error === 'Not authenticated') {
+            // Truly not logged in — go to login page
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('currentUser');
+            window.location.href = '/';
+            return;
+        }
+        localStorage.setItem('currentUser', JSON.stringify(data));
+        updateDashboardUI(data);
+    })
+    .catch(function(error) {
+        console.error('Error fetching user data:', error);
+        // Network error: use server-rendered data if available
+        if (window.serverUserData) updateDashboardUI(window.serverUserData);
+    });
+}
+
+function updateDashboardUI(user) {
+    var welcomeMessage = document.getElementById('welcomeMessage');
+    var userScore = document.getElementById('userScore');
+    var labsCompleted = document.getElementById('labsCompleted');
+    
+    if (welcomeMessage && user && user.username) {
+        welcomeMessage.textContent = 'Welcome Back, ' + user.username + '!';
+    }
+    
+    if (userScore && user) {
+        userScore.textContent = user.score || 0;
+    }
+    
+    if (labsCompleted && user) {
+        labsCompleted.textContent = user.labs_completed || 0;
+    }
+}
+
+function refreshUserData() {
+    var token = localStorage.getItem('access_token');
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    fetch('/api/me', { headers: headers })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (!data || data.authenticated === false) return;
+        localStorage.setItem('currentUser', JSON.stringify(data));
+        updateDashboardUI(data);
+    })
+    .catch(function(error) {
+        console.error('Error refreshing user data:', error);
+    });
+}
+
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'FLAG_SUBMITTED' && event.data.success) {
+        var labType = event.data.lab_type || null;
+        // Immediately apply values from the message payload (no extra round-trip)
+        var scoreEl = document.getElementById('userScore');
+        var labsEl = document.getElementById('labsCompleted');
+        if (scoreEl && event.data.total_score !== undefined) scoreEl.textContent = event.data.total_score;
+        if (labsEl && event.data.labs_completed !== undefined) labsEl.textContent = event.data.labs_completed;
+        if (labType) markLabCompleted(labType);
+        // Then refresh everything from server
+        setTimeout(function() { refreshUserData(); }, 800);
+        setTimeout(function() { refreshLeaderboard(); }, 1000);
+        setTimeout(function() { refreshLabCompletion(null); }, 1200);
+    }
+});
+
+// Listen for BroadcastChannel messages
+if (typeof BroadcastChannel !== 'undefined') {
+    var flagChannel = new BroadcastChannel('flag_updates');
+    flagChannel.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'FLAG_SUBMITTED' && event.data.success) {
+            var labType = event.data.lab_type || null;
+            // Immediately apply values from the message payload (no extra round-trip)
+            var scoreEl = document.getElementById('userScore');
+            var labsEl = document.getElementById('labsCompleted');
+            if (scoreEl && event.data.total_score !== undefined) scoreEl.textContent = event.data.total_score;
+            if (labsEl && event.data.labs_completed !== undefined) labsEl.textContent = event.data.labs_completed;
+            if (labType) markLabCompleted(labType);
+            // Then refresh everything from server
+            setTimeout(function() { refreshUserData(); }, 800);
+            setTimeout(function() { refreshLeaderboard(); }, 1000);
+            setTimeout(function() { refreshLabCompletion(null); }, 1200);
+        }
+    });
+}
+
+// Enhanced API functions for server communication
+function submitFlagToServer(labType, flag) {
+    var token = localStorage.getItem('access_token');
+    
+    return fetch('/submit_flag', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+            lab_type: labType,
+            flag: flag
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            // Immediately update score and count in the UI
+            var scoreEl = document.getElementById('userScore');
+            var labsEl = document.getElementById('labsCompleted');
+            if (scoreEl && data.total_score !== undefined) scoreEl.textContent = data.total_score;
+            if (labsEl && data.labs_completed !== undefined) labsEl.textContent = data.labs_completed;
+
+            // Mark the specific lab card as completed instantly
+            markLabCompleted(labType);
+
+            // Persist to localStorage
+            if (window.serverUserData) {
+                window.serverUserData.score = data.total_score;
+                window.serverUserData.labs_completed = data.labs_completed;
+                localStorage.setItem('currentUser', JSON.stringify(window.serverUserData));
+            }
+
+            // Also broadcast so other tabs (dashboard) update
+            if (typeof BroadcastChannel !== 'undefined') {
+                var ch = new BroadcastChannel('flag_updates');
+                ch.postMessage({ type: 'FLAG_SUBMITTED', success: true, lab_type: labType });
+            }
+
+            // Refresh leaderboard
+            refreshLeaderboard();
+        }
+        return data;
+    });
+}
+
+/**
+ * Mark a single lab card as completed in the DOM.
+ * @param {string} flagType - e.g. 'stored_xss'
+ */
+function markLabCompleted(flagType) {
+    if (!flagType) return;
+    var card = document.getElementById('lab-card-' + flagType);
+    var badge = document.getElementById('badge-' + flagType);
+    if (card) {
+        card.classList.add('completed');
+    }
+    if (badge) {
+        badge.style.display = '';
+        badge.textContent = '\u2713 Completed';
+    }
+}
+
+/**
+ * Fetch completed labs from backend and refresh all lab card ticks.
+ * @param {string|null} immediateLabType - optional: instantly mark one lab without waiting for fetch
+ */
+function refreshLabCompletion(immediateLabType) {
+    if (immediateLabType) {
+        markLabCompleted(immediateLabType);
+    }
+    var token = localStorage.getItem('access_token');
+    if (!token) return;
+    fetch('/api/completed-labs', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var completed = data.completed_labs || [];
+        completed.forEach(function(flagType) {
+            markLabCompleted(flagType);
+        });
+    })
+    .catch(function(e) { console.error('Error refreshing lab completion:', e); });
+}
+
+function getUserProfile() {
+    var token = localStorage.getItem('access_token');
+    
+    return fetch('/api/user-profile', {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    })
+    .then(function(response) { return response.json(); });
+}
+
+function getLeaderboardData() {
+    return fetch('/api/leaderboard')
+        .then(function(response) { return response.json(); });
+}
+
+function refreshLeaderboard() {
+    fetch('/api/leaderboard')
+        .then(function(response) { return response.json(); })
+        .then(function(leaderboard) {
+            var leaderboardContainer = document.querySelector('.leaderboard');
+            if (leaderboardContainer) {
+                leaderboardContainer.innerHTML = '';
+                leaderboard.forEach(function(user, index) {
+                    var item = document.createElement('div');
+                    item.className = 'leaderboard-item';
+                    item.innerHTML = '<span class="rank">#' + (index + 1) + '</span><span class="username">' + user.username + '</span><span class="score">' + user.score + '</span>';
+                    leaderboardContainer.appendChild(item);
+                });
+            }
+        })
+        .catch(function(error) {
+            console.error('Error refreshing leaderboard:', error);
+        });
+}
 </script>
 {% endblock %}

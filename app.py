@@ -20,6 +20,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bug_bounty_lab.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = 'jwt-secret-change-in-production'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+# Keep Flask sessions alive for 24 hours (persistent across browser restarts)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "connect_args": {
+        "check_same_thread": False,
+        "timeout": 30,
+    },
+}
 
 # Flask-Mail configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -52,11 +60,11 @@ class SecurityMentorAI:
         
         if self.openai_key:
             openai.api_key = self.openai_key
-            print("🤖 OpenAI API ready!")
+            print("OpenAI API ready!")
         elif self.gemini_key:
-            print("🚀 Gemini API ready!")
+            print("Gemini API ready!")
         else:
-            print("⚡ Using local AI")
+            print("Using local AI")
         
         self.personality_responses = [
             "🔒 Hey there, security explorer! ",
@@ -278,6 +286,9 @@ class SecurityMentorAI:
 # Initialize security mentor AI
 security_ai = SecurityMentorAI()
 
+def get_user_by_id(user_id):
+    return User.query.get(user_id)
+
 # User Model
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -380,8 +391,18 @@ def register():
     password_hash = generate_password_hash(password)
     user = User(username=username, name=name, email=email, password_hash=password_hash)
     
-    db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Registration DB error: {e}")
+        return jsonify({'error': 'Registration failed due to a database error. Please try again.'}), 500
+    
+    # Set persistent session
+    session.permanent = True
+    session['user_id'] = user.id
+    session['username'] = user.username
     
     access_token = create_access_token(identity=user.id)
     return jsonify({
@@ -390,7 +411,9 @@ def register():
             'id': user.id,
             'username': user.username,
             'name': user.name,
-            'email': user.email
+            'email': user.email,
+            'score': user.score,
+            'labs_completed': user.labs_completed
         }
     }), 201
 
@@ -418,10 +441,17 @@ def login():
         return jsonify({'error': 'Account temporarily locked. Try again later'}), 423
     
     if check_password_hash(user.password_hash, password):
-        # Reset failed attempts on successful login
         user.failed_attempts = 0
         user.locked_until = None
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        
+        # Set persistent Flask session (survives browser restarts for 24h)
+        session.permanent = True
+        session['user_id'] = user.id
+        session['username'] = user.username
         
         access_token = create_access_token(identity=user.id)
         return jsonify({
@@ -430,16 +460,19 @@ def login():
                 'id': user.id,
                 'username': user.username,
                 'name': user.name,
-                'email': user.email
+                'email': user.email,
+                'score': user.score,
+                'labs_completed': user.labs_completed
             }
         }), 200
     else:
-        # Increment failed attempts
         user.failed_attempts += 1
         if user.failed_attempts >= 5:
             user.locked_until = datetime.utcnow() + timedelta(minutes=30)
-        db.session.commit()
-        
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         return jsonify({'error': 'Invalid credentials'}), 401
 
 @app.route('/api/leaderboard')
@@ -454,6 +487,48 @@ def api_leaderboard():
         }
         for idx, user in enumerate(leaderboard)
     ])
+
+@app.route('/api/me')
+def api_me():
+    """
+    Returns current user profile using EITHER JWT Bearer token OR Flask session.
+    Used by the dashboard JS so it never gets a hard 401 redirect.
+    """
+    user = None
+
+    # 1. Try JWT Bearer token first
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            user = User.query.get(user_id)
+    except Exception:
+        pass
+
+    # 2. Fallback to Flask session
+    if not user and 'user_id' in session:
+        try:
+            user = User.query.get(session['user_id'])
+        except Exception:
+            pass
+
+    if not user:
+        return jsonify({'error': 'Not authenticated', 'authenticated': False}), 401
+
+    return jsonify({
+        'authenticated': True,
+        'id': user.id,
+        'username': user.username,
+        'name': user.name,
+        'email': user.email,
+        'score': user.score,
+        'labs_completed': user.labs_completed
+    })
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
 
 @app.route('/api/user-stats')
 @jwt_required()
@@ -498,6 +573,7 @@ def api_lab_progress():
     completed_labs = db.session.query(UserFlag.vulnerability_id).filter_by(
         user_id=user_id, is_correct=True
     ).distinct().all()
+    # vulnerability_id stores flag_type strings (e.g. 'stored_xss')
     completed_lab_ids = [lab[0] for lab in completed_labs]
     
     return jsonify([
@@ -505,10 +581,22 @@ def api_lab_progress():
             'id': vuln.id,
             'title': vuln.title,
             'difficulty': vuln.difficulty,
-            'completed': vuln.id in completed_lab_ids
+            'completed': str(vuln.id) in completed_lab_ids or vuln.vuln_type in completed_lab_ids
         }
         for vuln in vulnerabilities
     ])
+
+
+@app.route('/api/completed-labs')
+@jwt_required()
+def api_completed_labs():
+    """Return a list of completed flag_type strings for the current user."""
+    user_id = get_jwt_identity()
+    completed = db.session.query(UserFlag.vulnerability_id).filter_by(
+        user_id=user_id, is_correct=True
+    ).distinct().all()
+    completed_flag_types = [row[0] for row in completed]
+    return jsonify({'completed_labs': completed_flag_types})
 
 
 
@@ -528,16 +616,66 @@ def dashboard():
         {'id': 11, 'title': 'File Upload', 'description': 'Bypass file upload restrictions', 'difficulty': 'Advanced', 'points': 170, 'url': '/lab/file_upload', 'flag_type': 'file_upload'},
         {'id': 12, 'title': 'Open Redirect', 'description': 'Exploit open redirect vulnerabilities', 'difficulty': 'Beginner', 'points': 90, 'url': '/lab/open_redirect', 'flag_type': 'open_redirect'}
     ]
+    
+    current_user = None
+    leaderboard = []
+    completed_labs = []
+    
+    # Try JWT first (for API-based navigation)
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            current_user = User.query.get(user_id)
+            if current_user:
+                completed_flags = UserFlag.query.filter_by(user_id=user_id, is_correct=True).all()
+                completed_labs = [flag.vulnerability_id for flag in completed_flags]
+    except Exception:
+        pass
+    
+    # Fallback: check Flask session (set at login/register)
+    if not current_user and 'user_id' in session:
+        try:
+            user_id = session['user_id']
+            current_user = User.query.get(user_id)
+            if current_user:
+                completed_flags = UserFlag.query.filter_by(user_id=user_id, is_correct=True).all()
+                completed_labs = [flag.vulnerability_id for flag in completed_flags]
+        except Exception:
+            pass
+
+    # Guard: redirect unauthenticated users to login page
+    if not current_user:
+        return redirect(url_for('index'))
+    
+    leaderboard = User.query.order_by(User.score.desc()).limit(10).all()
+    
     return render_template('dashboard.html', 
                          vulnerabilities=labs, 
-                         current_user=None, 
-                         leaderboard=[],
-                         completed_labs=[])
+                         current_user=current_user, 
+                         leaderboard=leaderboard,
+                         completed_labs=completed_labs)
+
 
 @app.route('/profile')
 def profile():
-    # Just render the template, let JavaScript handle authentication
-    return render_template('profile.html', user=None, submissions=[])
+    # Check if user is logged in via JWT or session
+    user = None
+    try:
+        # First try JWT
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            user = User.query.get(user_id)
+        # If no JWT, try session
+        elif 'user_id' in session:
+            user = User.query.get(session['user_id'])
+    except:
+        # Fallback to session if JWT fails
+        if 'user_id' in session:
+            user = User.query.get(session['user_id'])
+    
+    return render_template('profile.html', user=user, submissions=[])
 
 @app.route('/recon')
 def recon():
@@ -567,7 +705,11 @@ def update_profile():
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update profile'}), 500
     return jsonify({'message': 'Profile updated successfully'})
 
 @app.route('/change-password', methods=['POST'])
@@ -591,7 +733,11 @@ def change_password():
         return jsonify({'error': password_error}), 400
     
     user.password_hash = generate_password_hash(new_password)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to update password'}), 500
     
     return jsonify({'message': 'Password changed successfully'})
 
@@ -874,57 +1020,102 @@ def submit_flag():
         data = request.get_json()
         submitted_flag = data.get('flag', '').strip()
         lab_type = data.get('lab_type', '').strip()
-        
-        current_user_id = get_jwt_identity()
-        
+
+        print(f"Flag submission: {lab_type} = {submitted_flag}")
+
+        # --- Dual auth: accept JWT Bearer token OR Flask session ---
+        current_user_id = None
+
+        # 1. Try JWT Bearer token first
+        try:
+            verify_jwt_in_request(optional=True)
+            current_user_id = get_jwt_identity()
+        except Exception:
+            pass
+
+        # 2. Fallback to Flask session
+        if not current_user_id and 'user_id' in session:
+            current_user_id = session['user_id']
+
+        print(f"User ID: {current_user_id}")
+
+        if not current_user_id:
+            return jsonify({
+                'success': False,
+                'message': 'Authentication required. Please log in.'
+            }), 401
+
         # Check if flag is correct
         if lab_type in flags and submitted_flag == flags[lab_type]:
+            print(f"Flag is correct for {lab_type}")
+
             # Check if user already submitted this flag
             existing_submission = UserFlag.query.filter_by(
-                user_id=current_user_id, 
-                vulnerability_id=lab_type
+                user_id=current_user_id,
+                vulnerability_id=lab_type,
+                is_correct=True
             ).first()
-            
+
             if existing_submission:
+                print(f"Flag already submitted by user {current_user_id}")
                 return jsonify({
-                    'success': False, 
+                    'success': False,
                     'message': 'Flag already submitted for this lab!'
                 }), 400
-            
-            # Add new flag submission
+
+            # Get user and update score
+            user = User.query.get(current_user_id)
+            if not user:
+                return jsonify({
+                    'success': False,
+                    'message': 'User not found'
+                }), 404
+
+            print(f"Current user score: {user.score}, labs: {user.labs_completed}")
+
+            # Update user score and labs completed
+            user.score = (user.score or 0) + 100
+            user.labs_completed = (user.labs_completed or 0) + 1
+
+            # Add new flag submission record
             new_submission = UserFlag(
                 user_id=current_user_id,
                 vulnerability_id=lab_type,
                 flag_submitted=submitted_flag,
                 is_correct=True
             )
-            
-            # Update user score
-            user = User.query.get(current_user_id)
-            user.score += 100
-            user.labs_completed += 1
-            
+
             db.session.add(new_submission)
             db.session.commit()
-            
+
+            print(f"Updated user score: {user.score}, labs: {user.labs_completed}")
+
             return jsonify({
-                'success': True, 
-                'message': f'Correct flag! You earned 100 points.',
-                'points': 100
+                'success': True,
+                'message': f'Correct flag! You earned 100 points. Total score: {user.score}',
+                'points': 100,
+                'total_score': user.score,
+                'labs_completed': user.labs_completed,
+                'lab_type': lab_type
             })
         else:
+            print(f"Incorrect flag: {submitted_flag} for {lab_type}")
+            print(f"Expected: {flags.get(lab_type)}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': 'Incorrect flag. Try again!'
             }), 400
-            
+
     except Exception as e:
+        print(f"Error in submit_flag: {str(e)}") 
+        db.session.rollback()
         return jsonify({
-            'success': False, 
-            'message': 'Error submitting flag'
+            'success': False,
+            'message': f'Error submitting flag: {str(e)}'
         }), 500
 
 # Vulnerability detection endpoints
+
 @app.route('/check_vulnerability', methods=['POST'])
 def check_vulnerability():
     try:
@@ -1040,12 +1231,15 @@ def check_vulnerability():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    with app.app_context():
-        # Recreate database to fix UserFlag schema
-        print("Recreating database...")
-        db.drop_all()
-        db.create_all()
+    import os
+    # Only run db.create_all() in the main process (not the reloader child)
+    # WERKZEUG_RUN_MAIN is set to 'true' only in the reloader's child process
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        with app.app_context():
+            print("Creating database tables...")
+            db.create_all()
+            print("Database tables created successfully")
     
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True, use_reloader=True)
 
 

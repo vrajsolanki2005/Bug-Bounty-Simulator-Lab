@@ -23,6 +23,10 @@
                 <i class="fas fa-user-circle"></i>
                 Profile
             </a>
+            <a href="/recon" class="nav-item">
+                <i class="fas fa-search"></i>
+                Recon
+            </a>
             <button class="nav-item logout-nav" id="logout-btn">
                 <i class="fas fa-sign-out-alt"></i>
                 Logout
@@ -33,29 +37,26 @@
 
 <div class="profile-page">
     <div class="container">
-        <!-- Profile Header -->
         <div class="profile-header">
             <h1>My Profile</h1>
             <p>Manage your account settings and preferences</p>
         </div>
 
         <div class="profile-content">
-            <!-- Profile Overview Card -->
             <div class="profile-overview-card">
                 <div class="profile-avatar">
                     <i class="fas fa-user-circle"></i>
                 </div>
                 <div class="profile-info">
-                    <h2>Loading...</h2>
-                    <p class="email">Loading...</p>
+                    <h2>{{ user.name if user and user.name else (user.username if user else 'User') }}</h2>
+                    <p class="email">{{ user.email if user else 'No email' }}</p>
                     <p class="join-date">
                         <i class="fas fa-calendar"></i> 
-                        Joined Recently
+                        Joined {{ user.created_at.strftime('%B %d, %Y') if user and user.created_at else 'Recently' }}
                     </p>
                 </div>
             </div>
 
-            <!-- Profile Settings -->
             <div class="profile-settings">
                 <div class="settings-tabs">
                     <button class="tab-btn active" data-tab="personal">
@@ -66,7 +67,6 @@
                     </button>
                 </div>
 
-                <!-- Personal Info Tab -->
                 <div class="tab-content active" id="personal-tab">
                     <div class="settings-section">
                         <h3><i class="fas fa-edit"></i> Personal Information</h3>
@@ -74,18 +74,18 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="username">Username</label>
-                                    <input type="text" id="username" value="" disabled>
+                                    <input type="text" id="username" value="{{ user.username if user else '' }}" disabled>
                                     <small>Username cannot be changed</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="email">Email Address</label>
-                                    <input type="email" id="email" value="" required>
+                                    <input type="email" id="email" value="{{ user.email if user else '' }}" required>
                                 </div>
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="first-name">First Name</label>
-                                    <input type="text" id="first-name" placeholder="Enter your first name">
+                                    <label for="first-name">Name</label>
+                                    <input type="text" id="first-name" value="{{ user.name if user else '' }}" placeholder="Enter your name">
                                 </div>
                                 <div class="form-group">
                                     <label for="last-name">Last Name</label>
@@ -103,7 +103,6 @@
                     </div>
                 </div>
 
-                <!-- Security Tab -->
                 <div class="tab-content" id="security-tab">
                     <div class="settings-section">
                         <h3><i class="fas fa-key"></i> Change Password</h3>
@@ -165,53 +164,12 @@
     </div>
 </div>
 
-<!-- Success/Error Messages -->
 <div id="message-container"></div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-const token = localStorage.getItem('access_token');
-
-// Check authentication
-if (!token) {
-    window.location.href = '/';
-}
-
-// Load user profile data
-fetch('/api/user-profile', {
-    headers: {
-        'Authorization': `Bearer ${token}`
-    }
-})
-.then(response => {
-    if (response.status === 401) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('username');
-        window.location.href = '/';
-        return;
-    }
-    return response.json();
-})
-.then(data => {
-    if (data && !data.error) {
-        document.querySelector('.profile-info h2').textContent = data.name || data.username || 'User';
-        document.querySelector('.profile-info .email').textContent = data.email || 'No email';
-        document.querySelector('.profile-info .join-date').innerHTML = `<i class="fas fa-calendar"></i> Joined ${data.created_at || 'Recently'}`;
-        document.getElementById('username').value = data.username || '';
-        document.getElementById('email').value = data.email || '';
-        document.getElementById('first-name').value = data.name || '';
-    }
-})
-.catch(error => {
-    console.error('Could not load user data:', error);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('username');
-    window.location.href = '/';
-});
-
-// Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const tabId = btn.dataset.tab;
@@ -226,16 +184,18 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// Profile form submission
-document.getElementById('profile-form').addEventListener('submit', async (e) => {
+document.getElementById('profile-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const formData = {
         email: document.getElementById('email').value,
-        birthdate: document.getElementById('first-name').value || null
+        first_name: document.getElementById('first-name').value,
+        last_name: document.getElementById('last-name').value,
+        bio: document.getElementById('bio').value
     };
-
+    
     try {
+        const token = localStorage.getItem('access_token');
         const response = await fetch('/update-profile', {
             method: 'POST',
             headers: {
@@ -244,23 +204,23 @@ document.getElementById('profile-form').addEventListener('submit', async (e) => 
             },
             body: JSON.stringify(formData)
         });
-
-        const data = await response.json();
+        
+        const result = await response.json();
         
         if (response.ok) {
-            showMessage('success', data.message || 'Profile updated successfully');
+            showMessage('success', 'Profile updated successfully!');
         } else {
-            showMessage('error', data.error || 'Failed to update profile');
+            showMessage('error', result.error || 'Failed to update profile');
         }
     } catch (error) {
         showMessage('error', 'Failed to update profile');
     }
 });
 
-// Password form submission
-document.getElementById('password-form').addEventListener('submit', async (e) => {
+document.getElementById('password-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    const currentPassword = document.getElementById('current-password').value;
     const newPassword = document.getElementById('new-password').value;
     const confirmPassword = document.getElementById('confirm-password').value;
     
@@ -268,43 +228,40 @@ document.getElementById('password-form').addEventListener('submit', async (e) =>
         showMessage('error', 'New passwords do not match');
         return;
     }
-
-    const formData = {
-        current_password: document.getElementById('current-password').value,
-        new_password: newPassword
-    };
-
+    
     try {
+        const token = localStorage.getItem('access_token');
         const response = await fetch('/change-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(formData)
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
         });
-
-        const data = await response.json();
+        
+        const result = await response.json();
         
         if (response.ok) {
-            showMessage('success', data.message || 'Password changed successfully');
+            showMessage('success', 'Password changed successfully!');
             document.getElementById('password-form').reset();
         } else {
-            showMessage('error', data.error || 'Failed to change password');
+            showMessage('error', result.error || 'Failed to change password');
         }
     } catch (error) {
         showMessage('error', 'Failed to change password');
     }
 });
 
-// Logout functionality
 document.getElementById('logout-btn').addEventListener('click', function() {
     localStorage.removeItem('access_token');
-    localStorage.removeItem('username');
+    localStorage.removeItem('currentUser');
     window.location.href = '/';
 });
 
-// Delete account confirmation
 function confirmDelete() {
     if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
         showMessage('info', 'Account deletion feature coming soon');

@@ -112,6 +112,7 @@
     <script>
         function logout() {
             localStorage.removeItem('access_token');
+            localStorage.removeItem('currentUser');
             window.location.href = '/';
         }
 
@@ -133,39 +134,100 @@
             return labTypes[labId] || 'unknown';
         }
 
-        function submitFlag() {
+        async function submitFlag() {
             const flag = document.getElementById('flagInput').value.trim();
             const result = document.getElementById('flagResult');
-            
+            const labType = getLabType({{ lab_id }});
+
             if (!flag) {
                 result.innerHTML = '<p style="color: #ef4444;">Please enter a flag</p>';
                 return;
             }
 
-            const correctFlags = {
-                'stored_xss': 'FLAG{STORED_XSS_MASTER_2024}',
-                'reflected_xss': 'FLAG{REFLECTED_XSS_FOUND}',
-                'sql_injection': 'FLAG{SQL_INJECTION_BYPASSED}',
-                'csrf_attack': 'FLAG{CSRF_TOKEN_MISSING}',
-                'xxe_injection': 'FLAG{XXE_PAYLOAD_SUCCESS}',
-                'lfi_attack': 'FLAG{LOCAL_FILE_INCLUSION}',
-                'rce_exploit': 'FLAG{REMOTE_CODE_EXECUTION}',
-                'idor_bypass': 'FLAG{INSECURE_DIRECT_OBJECT_REF}',
-                'auth_bypass': 'FLAG{BROKEN_AUTHENTICATION}',
-                'session_hijack': 'FLAG{SESSION_HIJACKED}',
-                'file_upload': 'FLAG{FILE_UPLOAD_BYPASS}',
-                'open_redirect': 'FLAG{OPEN_REDIRECT_FOUND}'
-            };
-            
-            const labType = getLabType({{ lab_id }});
-            
-            if (correctFlags[labType] === flag) {
-                result.innerHTML = '<p style="color: #10b981;">✅ Correct flag! You earned 100 points.</p>';
-                document.getElementById('flagInput').value = '';
-            } else {
-                result.innerHTML = '<p style="color: #ef4444;">❌ Incorrect flag. Try again!</p>';
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                result.innerHTML = '<p style="color: #ef4444;">⚠️ You must be logged in to submit flags. <a href="/" style="color:#8b5cf6;">Login here</a></p>';
+                return;
+            }
+
+            const submitBtn = document.querySelector('button[onclick="submitFlag()"]');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+
+            try {
+                const response = await fetch('/submit_flag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ lab_type: labType, flag: flag })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    result.innerHTML = `
+                        <div style="background: rgba(16,185,129,0.15); border: 1px solid #10b981; border-radius: 8px; padding: 1rem; margin-top: 0.5rem;">
+                            <p style="color: #10b981; font-size: 1.1rem; margin: 0 0 0.5rem 0;">✅ Correct flag! You earned 100 points.</p>
+                            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.95rem;">
+                                🏆 Total Score: <strong style="color:#f59e0b;">${data.total_score}</strong> &nbsp;|&nbsp;
+                                ✅ Labs Completed: <strong style="color:#10b981;">${data.labs_completed}</strong>
+                            </p>
+                        </div>`;
+                    document.getElementById('flagInput').value = '';
+
+                    // Update localStorage so dashboard reads fresh data
+                    try {
+                        const cached = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                        cached.score = data.total_score;
+                        cached.labs_completed = data.labs_completed;
+                        localStorage.setItem('currentUser', JSON.stringify(cached));
+                    } catch(e) {}
+
+                    // Broadcast to dashboard (same-origin tabs)
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        const ch = new BroadcastChannel('flag_updates');
+                        ch.postMessage({
+                            type: 'FLAG_SUBMITTED',
+                            success: true,
+                            lab_type: labType,
+                            total_score: data.total_score,
+                            labs_completed: data.labs_completed
+                        });
+                        ch.close();
+                    }
+
+                    // Also try opener window (if dashboard is open behind this tab)
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.postMessage({
+                            type: 'FLAG_SUBMITTED',
+                            success: true,
+                            lab_type: labType,
+                            total_score: data.total_score,
+                            labs_completed: data.labs_completed
+                        }, '*');
+                    }
+
+                } else {
+                    result.innerHTML = `<p style="color: #ef4444;">❌ ${data.message || 'Incorrect flag. Try again!'}</p>`;
+                }
+            } catch(err) {
+                console.error('Flag submission error:', err);
+                result.innerHTML = '<p style="color: #ef4444;">❌ Network error. Please try again.</p>';
+            } finally {
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit'; }
             }
         }
+
+        // Allow Enter key in flag input
+        document.addEventListener('DOMContentLoaded', function() {
+            const flagInput = document.getElementById('flagInput');
+            if (flagInput) {
+                flagInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') submitFlag();
+                });
+            }
+        });
     </script>
 </body>
 </html>
