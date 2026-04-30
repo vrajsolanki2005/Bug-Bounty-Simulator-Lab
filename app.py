@@ -15,10 +15,10 @@ from collections import defaultdict
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bug_bounty_lab.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'jwt-secret-change-in-production'
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
 # Keep Flask sessions alive for 24 hours (persistent across browser restarts)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
@@ -1230,16 +1230,11 @@ def check_vulnerability():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Initialize DB on startup (works for both gunicorn and direct run)
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    import os
-    # Only run db.create_all() in the main process (not the reloader child)
-    # WERKZEUG_RUN_MAIN is set to 'true' only in the reloader's child process
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        with app.app_context():
-            print("Creating database tables...")
-            db.create_all()
-            print("Database tables created successfully")
-    
-    app.run(host='127.0.0.1', port=5000, debug=True, use_reloader=True)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=False)
 
 
