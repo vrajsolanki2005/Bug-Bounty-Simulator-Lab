@@ -1,3 +1,18 @@
+---
+title: Bug Bounty Simulator Lab
+description: A full-stack web application for practicing ethical hacking and vulnerability assessment in a safe, controlled environment.
+author: Vraj Solanki & Jay Shah
+version: 1.0.0
+license: Educational Use Only
+tags:
+  - security
+  - ethical-hacking
+  - flask
+  - python
+  - jwt
+  - 2fa
+---
+
 # Bug Bounty Simulator Lab
 
 A full-stack web application for practicing ethical hacking and vulnerability assessment in a safe, controlled environment.

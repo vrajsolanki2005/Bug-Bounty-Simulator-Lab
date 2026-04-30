@@ -41,3 +41,21 @@ Thumbs.db
 
 # Render / deployment
 .render/
+
+# Deployment configs
+Procfile
+render.yaml
+runtime.txt
+
+# Generated artifacts
+workflow_diagram.png
+
+# Scripts
+generate_workflow_diagram.py
+test_email.py
+
+# Notes
+APPENDIX.txt
+
+# DB Browser
+*.sqbpro
