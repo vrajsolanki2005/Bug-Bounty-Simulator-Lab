@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # The Vulnerable E-Commerce Target
+  vuln-target:
+    build:
+      context: ../
+      dockerfile: infrastructure/target.Dockerfile
+    container_name: vulnshop-target
+    networks:
+      lab_net:
+        ipv4_address: 10.10.10.5
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASS=supersecret
+      - DB_NAME=bugbounty_simulator
+    restart: always
+    depends_on:
+      - db
+
+  # The MySQL Database containing flags and vulnerable data
+  db:
+    image: mysql:8.0
+    container_name: vulnshop-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=supersecret
+      - MYSQL_DATABASE=bugbounty_simulator
+    networks:
+      lab_net:
+        ipv4_address: 10.10.10.6
+    volumes:
+      - ../server/database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ../server/database/seed.js:/seed/seed.js
+
+  # The Kali Linux AttackBox
+  attackbox:
+    build:
+      context: .
+      dockerfile: attackbox.Dockerfile
+    container_name: kali-attackbox
+    stdin_open: true
+    tty: true
+    networks:
+      lab_net:
+        ipv4_address: 10.10.10.7
+    ports:
+      - "8080:8080" # NoVNC Web UI
+      - "2222:22"   # SSH
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - USER=hacker
+      - PASSWORD=hacker
+
+  # OpenVPN Server for external VPN connection
+  openvpn:
+    image: kylemanna/openvpn
+    container_name: openvpn-server
+    ports:
+      - "1194:1194/udp"
+    networks:
+      lab_net:
+        ipv4_address: 10.10.10.2
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./vpn-data:/etc/openvpn
+
+networks:
+  lab_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
