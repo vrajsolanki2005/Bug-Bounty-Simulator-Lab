@@ -7,6 +7,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
+server/.env
 
 # Build outputs
 dist/
@@ -39,6 +40,7 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
@@ -47,9 +49,12 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
+*.swp
+*.swo
 
 # Docker
 *.env.docker
+infrastructure/openvpn/
 
 # VPN / certs
 *.ovpn
@@ -57,7 +62,13 @@ Thumbs.db
 *.key
 *.crt
 *.p12
+*.ca
 
 # Database
 *.sqlite
 *.db
+database/data/
+
+# Uploads
+server/uploads/
+client/public/uploads/
