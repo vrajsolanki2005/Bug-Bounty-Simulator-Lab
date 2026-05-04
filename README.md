@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐛 Bug Bounty Simulator Lab
+# Bug Bounty Simulator Lab
 
 > A self-hosted, offline-capable cybersecurity lab — practice real-world bug bounty techniques against **59 intentionally embedded vulnerabilities** inside a fully isolated Docker environment.
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 🗺️ Network Architecture
+## Network Architecture
 
 ```
 10.10.10.0/24  (lab_net — isolated bridge)
@@ -44,7 +44,7 @@ Each exploit yields a `flag{...}` string — submit it to the Lab Management API
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 **Prerequisites:** Docker & Docker Compose · 8 GB RAM
 
@@ -60,7 +60,7 @@ open http://localhost:8080/vnc.html
 firefox http://10.10.10.5
 ```
 
-### 🔌 VPN Access (Optional)
+### VPN Access (Optional)
 
 Attack from your own machine instead of the NoVNC AttackBox:
 
@@ -72,7 +72,7 @@ chmod +x infrastructure/openvpn-setup.sh
 
 ---
 
-## 🛠️ Local Development
+## Local Development
 
 ```bash
 # Server
@@ -86,7 +86,7 @@ npm install && npm run dev
 
 ---
 
-## 📦 Tech Stack
+##  Tech Stack
 
 | Layer | Tools |
 |---|---|
@@ -96,7 +96,7 @@ npm install && npm run dev
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 ├── client/          React frontend (Vite)
@@ -107,7 +107,7 @@ npm install && npm run dev
 
 ---
 
-## ⚠️ Warning
+##  Warning
 
 > This lab contains **intentionally vulnerable software**.
 > Never expose it to the public internet. Run only in an isolated local or private network.
