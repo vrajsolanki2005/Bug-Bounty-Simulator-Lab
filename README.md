@@ -1,144 +1,117 @@
----
-title: Bug Bounty Simulator Lab
-description: A fully isolated, TryHackMe-style offensive security lab with 59 embedded vulnerabilities, a Kali Linux AttackBox, and a real-time flag submission platform.
-version: 1.0.0
-stack: React · Node.js · MySQL · Docker · OpenVPN · Kali Linux
-status: Active
----
+<div align="center">
 
-# Bug Bounty Simulator Lab
+# 🐛 Bug Bounty Simulator Lab
 
-A self-hosted, offline-capable cybersecurity lab that replicates the TryHackMe experience. Practice real-world bug bounty techniques against an intentionally vulnerable e-commerce application — all inside an isolated Docker network.
+> A self-hosted, offline-capable cybersecurity lab — practice real-world bug bounty techniques against **59 intentionally embedded vulnerabilities** inside a fully isolated Docker environment.
 
----
+![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)
+![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)
+![React](https://img.shields.io/badge/react-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Node](https://img.shields.io/badge/node.js-express-339933?style=flat-square&logo=node.js&logoColor=white)
+![MySQL](https://img.shields.io/badge/mysql-8.0-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Kali](https://img.shields.io/badge/kali-linux-557C94?style=flat-square&logo=kalilinux&logoColor=white)
 
-## Architecture
-
-Four containers connected over an isolated bridge network (`lab_net` — `10.10.10.0/24`):
-
-| Container | IP | Role |
-|---|---|---|
-| `vuln-target` | `10.10.10.5` | Intentionally vulnerable Node.js/React app |
-| `db` | `10.10.10.6` | MySQL database with flags and vulnerable data |
-| `attackbox` | `10.10.10.7` | Kali Linux + XFCE desktop via NoVNC |
-| `openvpn` | `10.10.10.2` | OpenVPN server for external VPN access |
+</div>
 
 ---
 
-## Tech Stack
+## 🗺️ Network Architecture
 
-**Frontend** — React 18, Vite, Tailwind CSS, Framer Motion, Socket.IO Client
-
-**Backend** — Node.js, Express, MySQL2, Socket.IO, JWT, Helmet, Multer, Dockerode
-
-**Infrastructure** — Docker Compose, Kali Linux, OpenVPN, NoVNC
-
----
-
-## Vulnerability Scope
-
-The target (`10.10.10.5`) contains **59 natively embedded vulnerabilities** across:
-
-- Injection — SQLi, Command, NoSQL, LDAP, Template Injection
-- XSS — Stored, Reflected, DOM, Blind
-- Authentication & Access Control — Broken Auth, IDOR, Privilege Escalation
-- Server-Side — SSRF, LFI, RFI, Unrestricted File Upload
-- Business Logic & Race Conditions
-
-Each successfully exploited vulnerability yields a `flag{...}` string submittable to the Lab Management API.
+```
+10.10.10.0/24  (lab_net — isolated bridge)
+│
+├── 10.10.10.2   openvpn      OpenVPN server (external VPN access)
+├── 10.10.10.5   vuln-target  Vulnerable Node.js/React e-commerce app
+├── 10.10.10.6   db           MySQL — flags + vulnerable data
+└── 10.10.10.7   attackbox    Kali Linux XFCE via NoVNC (:8080)
+```
 
 ---
 
-## Getting Started
+## 🎯 Vulnerability Scope — 59 Challenges
 
-### Prerequisites
+| Category | Vulnerabilities |
+|---|---|
+| 💉 Injection | SQLi, Command, NoSQL, LDAP, Template Injection |
+| 🔀 XSS | Stored, Reflected, DOM, Blind |
+| 🔐 Auth & Access Control | Broken Auth, IDOR, Privilege Escalation |
+| 🌐 Server-Side | SSRF, LFI, RFI, Unrestricted File Upload |
+| ⚙️ Logic & Race Conditions | Business Logic Flaws, Race Conditions |
 
-- Docker & Docker Compose
-- 8 GB RAM recommended
+Each exploit yields a `flag{...}` string — submit it to the Lab Management API to score.
 
-### 1. Start the Lab
+---
+
+## 🚀 Quick Start
+
+**Prerequisites:** Docker & Docker Compose · 8 GB RAM
 
 ```bash
+# 1. Spin up the lab
 cd infrastructure
 docker-compose up -d --build
+
+# 2. Open the AttackBox in your browser
+open http://localhost:8080/vnc.html
+
+# 3. Inside Kali, navigate to the target
+firefox http://10.10.10.5
 ```
 
-### 2. Access the AttackBox (NoVNC)
+### 🔌 VPN Access (Optional)
 
-Open your browser and go to:
-
-```
-http://localhost:8080/vnc.html
-```
-
-Inside the Kali desktop, open Firefox and navigate to `http://10.10.10.5` to begin attacking the target.
-
-Pre-installed tools: `Burp Suite`, `Nmap`, `ffuf`, `SQLMap`, `Firefox`
-
-### 3. Access via VPN (Optional)
-
-To attack from your own host machine instead of the NoVNC AttackBox:
+Attack from your own machine instead of the NoVNC AttackBox:
 
 ```bash
 chmod +x infrastructure/openvpn-setup.sh
 ./infrastructure/openvpn-setup.sh
+# Import hacker1.ovpn → connect → hit http://10.10.10.5 directly
 ```
-
-Import the generated `hacker1.ovpn` into your OpenVPN client, connect, then access `http://10.10.10.5` directly from your host.
 
 ---
 
-## Local Development (Lab Management Platform)
-
-### Server
+## 🛠️ Local Development
 
 ```bash
-cd server
-cp .env.example .env   # fill in your values
-npm install
-npm run seed           # seed the database
-npm run dev
-```
+# Server
+cd server && cp .env.example .env
+npm install && npm run seed && npm run dev
 
-### Client
-
-```bash
+# Client
 cd client
-npm install
-npm run dev
+npm install && npm run dev
 ```
 
 ---
 
-## Project Structure
+## 📦 Tech Stack
+
+| Layer | Tools |
+|---|---|
+| Frontend | React 18, Vite, Tailwind CSS, Framer Motion, Socket.IO |
+| Backend | Node.js, Express, MySQL2, JWT, Helmet, Multer, Dockerode |
+| Infrastructure | Docker Compose, Kali Linux, OpenVPN, NoVNC |
+
+---
+
+## 📁 Project Structure
 
 ```
-.
-├── client/               # React frontend (Vite)
-│   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── context/
-│       └── pages/
-├── server/               # Node.js backend (Express)
-│   ├── database/         # Schema & seed scripts
-│   └── src/
-│       ├── config/
-│       ├── middleware/
-│       ├── routes/
-│       ├── services/
-│       └── sockets/
-└── infrastructure/       # Docker, Dockerfiles, OpenVPN
+├── client/          React frontend (Vite)
+├── server/          Node.js backend (Express + MySQL)
+│   └── database/    Schema & seed scripts
+└── infrastructure/  Docker Compose, Dockerfiles, OpenVPN
 ```
 
 ---
 
-## Warning
+## ⚠️ Warning
 
-> This lab contains **intentionally vulnerable software**. Never expose it to the public internet. Run it only in an isolated local or private network environment.
+> This lab contains **intentionally vulnerable software**.
+> Never expose it to the public internet. Run only in an isolated local or private network.
 
 ---
 
-## License
-
-MIT
+<div align="center">MIT License · Built for offensive security practice</div>
