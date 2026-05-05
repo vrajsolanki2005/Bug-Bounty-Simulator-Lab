@@ -1,0 +1,61 @@
+<%- include('../partials/header') %>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <a href="/" class="auth-logo">VulnShop</a>
+    <h1 class="auth-title">Sign In</h1>
+
+    <% if (error) { %>
+      <div class="alert alert-danger">
+        <!-- VULNERABILITY: Error message may contain raw SQL error details -->
+        ⚠️ <%= error %>
+      </div>
+    <% } %>
+    <% if (success) { %>
+      <div class="alert alert-success">✅ <%= success %></div>
+    <% } %>
+
+    <!-- VULNERABILITY: No CSRF protection on login form -->
+    <form action="/auth/login" method="POST" class="auth-form">
+      <div class="form-group">
+        <label for="username">Email or Username</label>
+        <input type="text" id="username" name="username" class="form-input"
+          placeholder="Enter your username" autocomplete="username" required>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" class="form-input"
+          placeholder="Enter your password" autocomplete="current-password" required>
+      </div>
+
+      <button type="submit" class="btn-full btn-amazon">Sign In</button>
+
+      <p class="auth-terms">
+        By continuing, you agree to VulnShop's <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
+      </p>
+    </form>
+
+    <div class="auth-divider"><span>New to VulnShop?</span></div>
+
+    <a href="/auth/register" class="btn-full btn-secondary">Create your VulnShop account</a>
+
+    <!-- Hidden hints for training -->
+    <!-- HINT: Try SQL injection: admin'-- as username -->
+    <!-- HINT: Or try: ' OR '1'='1'-- -->
+  </div>
+
+  <div class="auth-hint-card">
+    <h3>💡 Training Hints</h3>
+    <ul>
+      <li>Try <code>admin'--</code> as username with any password</li>
+      <li>Try <code>' OR '1'='1'--</code> as username</li>
+      <li>Try <code>' OR 1=1-- -</code></li>
+      <li>Check the page source for debug comments</li>
+    </ul>
+    <p><a href="/api/challenges" target="_blank">View all challenges →</a></p>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<%- include('../partials/flag-modal') %>

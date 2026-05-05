@@ -1,0 +1,175 @@
+<%- include('../partials/header') %>
+
+<!-- Hero Banner (home) -->
+<% if (!search && !category) { %>
+<div class="hero-banner">
+  <div class="hero-content">
+    <h2>Deals of the Day</h2>
+    <p>Up to 50% off on Electronics, Fashion & More</p>
+    <a href="/products?q=&sort=discount" class="btn-hero">Shop Now</a>
+  </div>
+</div>
+<% } %>
+
+<div class="products-page">
+
+  <!-- Category sidebar -->
+  <aside class="sidebar">
+    <h3>Department</h3>
+    <ul class="category-list">
+      <li><a href="/products" class="<%= !category ? 'active' : '' %>">All Products</a></li>
+      <% categories.forEach(cat => { %>
+        <li>
+          <a href="/products?category=<%= encodeURIComponent(cat.category) %>"
+             class="<%= category === cat.category ? 'active' : '' %>">
+            <%= cat.category %>
+          </a>
+        </li>
+      <% }) %>
+    </ul>
+
+    <h3 style="margin-top:20px;">Price Range</h3>
+    <ul class="category-list">
+      <li><a href="/products?q=<%= search %>&max_price=25">Under $25</a></li>
+      <li><a href="/products?q=<%= search %>&max_price=50">$25 – $50</a></li>
+      <li><a href="/products?q=<%= search %>&max_price=100">$50 – $100</a></li>
+      <li><a href="/products?q=<%= search %>&max_price=500">$100 – $500</a></li>
+      <li><a href="/products?q=<%= search %>&min_price=500">$500 & Above</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main content -->
+  <div class="products-main">
+
+    <!-- Search results header -->
+    <% if (search) { %>
+    <div class="search-results-header">
+      <!-- VULNERABILITY: Reflected XSS - search term output without escaping -->
+      <!-- Payload: <script>fetch('/api/steal?c='+document.cookie)</script> -->
+      <!-- Payload: <img src=x onerror="alert(document.cookie)"> -->
+      <p class="search-results-text">
+        Results for: <strong><%- search %></strong>
+        <span class="result-count">(<%= products.length %> results)</span>
+      </p>
+      <% if (sqlQuery) { %>
+        <!-- VULNERABILITY: SQL query exposed in debug output -->
+        <details class="debug-info">
+          <summary>🐛 Debug Info (SQL Query)</summary>
+          <code><%= sqlQuery %></code>
+        </details>
+      <% } %>
+    </div>
+    <% } else if (category) { %>
+    <div class="search-results-header">
+      <p class="search-results-text">
+        Department: <strong><%= category %></strong>
+        <span class="result-count">(<%= products.length %> products)</span>
+      </p>
+    </div>
+    <% } %>
+
+    <% if (error) { %>
+    <div class="alert alert-danger">
+      <!-- VULNERABILITY: Raw SQL error message displayed -->
+      ⚠️ Database Error: <code><%= error %></code>
+    </div>
+    <% } %>
+
+    <!-- Sort bar -->
+    <div class="sort-bar">
+      <span>Sort by:</span>
+      <a href="?q=<%= search %>&category=<%= category %>&sort=featured" class="sort-btn">Featured</a>
+      <a href="?q=<%= search %>&category=<%= category %>&sort=price_asc" class="sort-btn">Price: Low to High</a>
+      <a href="?q=<%= search %>&category=<%= category %>&sort=price_desc" class="sort-btn">Price: High to Low</a>
+      <a href="?q=<%= search %>&category=<%= category %>&sort=rating" class="sort-btn">Avg. Customer Review</a>
+    </div>
+
+    <!-- Products grid -->
+    <% if (products.length === 0) { %>
+    <div class="no-results">
+      <i class="fas fa-search fa-3x"></i>
+      <h2>No results found</h2>
+      <p>We couldn't find anything matching "<%= search %>".</p>
+      <p>Try different keywords or <a href="/products">browse all products</a>.</p>
+    </div>
+    <% } else { %>
+    <div class="products-grid">
+      <% products.forEach(product => { %>
+      <div class="product-card">
+        <a href="/products/<%= product.id %>" class="product-image-link">
+          <img src="<%= product.image_url %>" alt="<%= product.name %>" class="product-image"
+            onerror="this.src='https://picsum.photos/seed/<%= product.id %>/400/300'">
+        </a>
+        <div class="product-info">
+          <a href="/products/<%= product.id %>" class="product-title">
+            <%- product.name %>
+          </a>
+          <div class="product-rating">
+            <% for(let i=1; i<=5; i++) { %>
+              <i class="fas fa-star <%= i <= Math.round(product.rating || 4) ? 'star-filled' : 'star-empty' %>"></i>
+            <% } %>
+            <span class="review-count">(<%= product.review_count || 0 %>)</span>
+          </div>
+          <div class="product-pricing">
+            <span class="current-price">$<%= parseFloat(product.price).toFixed(2) %></span>
+            <% if (product.original_price && product.original_price > product.price) { %>
+              <span class="original-price">$<%= parseFloat(product.original_price).toFixed(2) %></span>
+              <span class="discount-badge">
+                <%= Math.round((1 - product.price / product.original_price) * 100) %>% off
+              </span>
+            <% } %>
+          </div>
+          <div class="product-meta">
+            <span class="seller"><%= product.seller || 'VulnShop' %></span>
+            <% if (product.stock < 10) { %>
+              <span class="low-stock">Only <%= product.stock %> left!</span>
+            <% } else { %>
+              <span class="in-stock">In Stock</span>
+            <% } %>
+          </div>
+          <button class="btn-add-cart" onclick="addToCart(<%= product.id %>, this)">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+function addToCart(productId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  fetch('/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `product_id=${productId}&quantity=1`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      btn.textContent = '✓ Added!';
+      btn.style.background = '#067D62';
+      updateCartCount();
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Add to Cart';
+        btn.style.background = '';
+      }, 2000);
+    } else {
+      btn.textContent = 'Sign in to add';
+      btn.disabled = false;
+      window.location.href = '/auth/login';
+    }
+  })
+  .catch(() => {
+    btn.textContent = 'Error';
+    btn.disabled = false;
+  });
+}
+</script>
+
+<%- include('../partials/footer') %>
+<%- include('../partials/flag-modal') %>

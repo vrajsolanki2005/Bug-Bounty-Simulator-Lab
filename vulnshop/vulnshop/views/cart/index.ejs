@@ -1,0 +1,181 @@
+<%- include('../partials/header') %>
+
+<div class="cart-page">
+  <h1 class="cart-title">Shopping Cart</h1>
+
+  <!-- Business Logic Flag -->
+  <% if (businessLogicFlag) { %>
+  <div class="flag-banner">
+    🎯 <strong>Business Logic Vulnerability Found!</strong><br>
+    <code><%= businessLogicFlag %></code><br>
+    <small>You exploited the coupon system without per-user tracking!</small>
+  </div>
+  <% } %>
+
+  <% if (items.length === 0) { %>
+    <div class="empty-cart">
+      <i class="fas fa-shopping-cart fa-4x" style="color:#ccc"></i>
+      <h2>Your VulnShop Cart is empty</h2>
+      <p>Shop today's deals</p>
+      <a href="/products" class="btn-amazon">Continue Shopping</a>
+    </div>
+  <% } else { %>
+  <div class="cart-layout">
+    <!-- Cart Items -->
+    <div class="cart-items">
+      <div class="cart-items-header">
+        <span style="text-align:right;display:block;color:#565959">Price</span>
+      </div>
+
+      <% items.forEach(item => { %>
+      <div class="cart-item" id="cart-item-<%= item.id %>">
+        <img src="<%= item.image_url %>" alt="<%= item.name %>" class="cart-item-image"
+          onerror="this.src='https://picsum.photos/seed/<%= item.product_id %>/120/120'">
+        <div class="cart-item-details">
+          <a href="/products/<%= item.product_id %>" class="cart-item-name"><%= item.name %></a>
+          <div class="cart-item-meta">
+            <% if (item.stock < 10) { %>
+              <span class="low-stock">Only <%= item.stock %> left</span>
+            <% } else { %>
+              <span class="in-stock-label">In Stock</span>
+            <% } %>
+          </div>
+          <div class="cart-item-actions">
+            <!-- VULNERABILITY: Quantity field allows negative values (business logic flaw) -->
+            <!-- Try setting quantity to -1 to get negative price -->
+            <div class="qty-control">
+              <label>Qty:</label>
+              <input type="number" class="qty-input" value="<%= item.quantity %>"
+                min="-99" max="99" <!-- Note: no minimum=1 validation -->
+                onchange="updateQty(<%= item.id %>, this.value)">
+            </div>
+            |
+            <form action="/cart/remove" method="POST" style="display:inline">
+              <input type="hidden" name="item_id" value="<%= item.id %>">
+              <button type="submit" class="link-btn">Delete</button>
+            </form>
+            |
+            <a href="#" class="link-btn">Save for later</a>
+          </div>
+          <div class="biz-logic-hint">
+            💡 <small>Try negative quantity for business logic exploit</small>
+          </div>
+        </div>
+        <div class="cart-item-price">
+          $<span id="item-price-<%= item.id %>"><%= (item.price * item.quantity).toFixed(2) %></span>
+        </div>
+      </div>
+      <% }) %>
+
+      <!-- Coupon Section -->
+      <div class="coupon-section">
+        <h3><i class="fas fa-tag"></i> Apply Coupon Code</h3>
+        <!-- VULNERABILITY: No per-user usage tracking on coupons -->
+        <!-- Try FLASH50 for 50% off (can be applied multiple times in different sessions) -->
+        <% if (couponApplied) { %>
+          <div class="coupon-applied">
+            ✅ Coupon <strong><%= couponApplied.code %></strong> applied!
+            <% if (couponApplied.discount_percent) { %><%= couponApplied.discount_percent %>% off<% } %>
+            <% if (couponApplied.discount_amount) { %>$<%= couponApplied.discount_amount %> off<% } %>
+            <form action="/cart/coupon/remove" method="POST" style="display:inline">
+              <button type="submit" class="link-btn">Remove</button>
+            </form>
+          </div>
+        <% } else { %>
+          <div class="coupon-form" id="couponForm">
+            <input type="text" id="couponInput" placeholder="Enter coupon code" class="coupon-input">
+            <button onclick="applyCoupon()" class="btn-coupon">Apply</button>
+            <div id="couponMsg"></div>
+          </div>
+          <div class="coupon-hint">
+            💡 Try codes: <code>WELCOME10</code>, <code>SAVE20</code>, <code>FLASH50</code>, <code>VIP100</code>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="cart-subtotal-row">
+        Subtotal (<%= items.reduce((s, i) => s + i.quantity, 0) %> items):
+        <strong id="cartSubtotal">$<%= subtotal.toFixed(2) %></strong>
+      </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="order-summary">
+      <div class="summary-card">
+        <% if (couponApplied) { %>
+          <div class="summary-row deal-text">
+            ✅ Deal applied: <%= couponApplied.code %>
+          </div>
+        <% } %>
+        <div class="summary-total">
+          Subtotal (<%= items.reduce((s,i) => s+i.quantity, 0) %> items):
+          <strong>$<%= subtotal.toFixed(2) %></strong>
+        </div>
+        <% if (subtotal < 35) { %>
+          <div class="summary-row">
+            Add $<%= (35 - subtotal).toFixed(2) %> more for FREE shipping
+          </div>
+        <% } %>
+        <a href="/cart/checkout" class="btn-full btn-amazon">
+          Proceed to Checkout
+        </a>
+        <div class="secure-badge">
+          <i class="fas fa-lock"></i> Secure transaction
+        </div>
+        <div class="payment-icons">
+          <i class="fab fa-cc-visa"></i>
+          <i class="fab fa-cc-mastercard"></i>
+          <i class="fab fa-cc-amex"></i>
+          <i class="fab fa-cc-paypal"></i>
+        </div>
+      </div>
+
+      <!-- Business Logic Hint -->
+      <div class="hint-box">
+        <h4>💡 Challenge Hints</h4>
+        <ul>
+          <li>Try coupon <code>FLASH50</code> for 50% off</li>
+          <li>Set item quantity to a negative number</li>
+          <li>Check <code>POST /cart/update</code> API parameters</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<script>
+function updateQty(itemId, qty) {
+  fetch('/cart/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `item_id=${itemId}&quantity=${qty}`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+  });
+}
+
+function applyCoupon() {
+  const code = document.getElementById('couponInput').value;
+  const msg = document.getElementById('couponMsg');
+  
+  fetch('/cart/coupon', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `coupon_code=${code}`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      msg.innerHTML = `<span style="color:green">✅ ${data.message}</span>`;
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      msg.innerHTML = `<span style="color:red">❌ ${data.message}</span>`;
+    }
+  });
+}
+</script>
+
+<%- include('../partials/footer') %>

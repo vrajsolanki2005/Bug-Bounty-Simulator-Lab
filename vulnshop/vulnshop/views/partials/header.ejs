@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | VulnShop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<!-- Main Header -->
+<header class="main-header">
+  <div class="header-inner">
+
+    <!-- Logo -->
+    <a href="/" class="logo">
+      <span class="logo-text">Vuln<span class="logo-shop">Shop</span></span>
+      <span class="logo-sub">.com</span>
+    </a>
+
+    <!-- Deliver to -->
+    <div class="deliver-to">
+      <i class="fas fa-map-marker-alt"></i>
+      <div>
+        <span class="deliver-label">Deliver to</span>
+        <span class="deliver-place"><%= user ? (user.full_name || user.username) : 'Guest' %></span>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <form class="search-form" action="/products" method="GET">
+      <select name="category" class="search-category">
+        <option value="">All</option>
+        <option value="Electronics">Electronics</option>
+        <option value="Fashion">Fashion</option>
+        <option value="Books">Books</option>
+        <option value="Home & Kitchen">Home & Kitchen</option>
+        <option value="Sports & Gaming">Sports & Gaming</option>
+        <option value="Toys & Games">Toys & Games</option>
+      </select>
+      <!-- VULNERABILITY: Search term sent as URL parameter - reflected XSS -->
+      <input type="text" name="q" class="search-input" placeholder="Search VulnShop..."
+        value="<%= typeof search !== 'undefined' ? search : '' %>">
+      <button type="submit" class="search-btn">
+        <i class="fas fa-search"></i>
+      </button>
+    </form>
+
+    <!-- Right nav -->
+    <nav class="header-nav">
+
+      <!-- Account -->
+      <div class="nav-item dropdown">
+        <div class="nav-item-inner">
+          <span class="nav-label">Hello, <%= user ? user.username : 'Sign in' %></span>
+          <span class="nav-main">Account & Lists <i class="fas fa-caret-down"></i></span>
+        </div>
+        <div class="dropdown-menu">
+          <% if (user) { %>
+            <a href="/profile">Your Account</a>
+            <a href="/orders">Your Orders</a>
+            <% if (user.role === 'admin') { %>
+              <a href="/admin" class="admin-link">⚙️ Admin Panel</a>
+            <% } %>
+            <hr>
+            <a href="/auth/logout">Sign Out</a>
+          <% } else { %>
+            <div class="dropdown-header">
+              <a href="/auth/login" class="btn-signin">Sign In</a>
+              <span>New customer? <a href="/auth/register">Start here</a></span>
+            </div>
+            <hr>
+            <a href="/orders">Your Orders</a>
+            <a href="/profile">Your Account</a>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Orders -->
+      <a href="/orders" class="nav-item">
+        <span class="nav-label">Returns</span>
+        <span class="nav-main">& Orders</span>
+      </a>
+
+      <!-- Cart -->
+      <a href="/cart" class="nav-item cart-btn">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="cart-count" id="cartCount">0</span>
+        <span class="nav-main">Cart</span>
+      </a>
+
+    </nav>
+  </div>
+
+  <!-- Secondary nav -->
+  <nav class="sub-nav">
+    <a href="/products"><i class="fas fa-bars"></i> All</a>
+    <a href="/products?category=Electronics">Electronics</a>
+    <a href="/products?category=Fashion">Fashion</a>
+    <a href="/products?category=Books">Books</a>
+    <a href="/products?category=Home+%26+Kitchen">Home & Kitchen</a>
+    <a href="/products?category=Sports+%26+Gaming">Sports & Gaming</a>
+    <a href="/products?category=Toys+%26+Games">Toys & Games</a>
+    <a href="/products?sort=price_asc" class="deal-link">Today's Deals</a>
+    <% if (user && user.role === 'admin') { %>
+      <a href="/admin" class="deal-link">⚙️ Admin</a>
+    <% } %>
+  </nav>
+</header>
+
+<main class="main-content">

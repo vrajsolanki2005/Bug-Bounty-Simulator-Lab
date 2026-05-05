@@ -15,14 +15,12 @@ router.get('/', authenticate, async (req, res) => {
       FROM users u
       LEFT JOIN user_challenges uc ON u.id = uc.user_id
       WHERE u.role = 'user'
-      GROUP BY u.id
+      GROUP BY u.id, u.username, u.points, u.rank_title
       ORDER BY u.points DESC, solved_count DESC, last_solve ASC
       LIMIT 50
     `);
 
-    // Add rank position
     const ranked = leaderboard.map((row, idx) => ({ ...row, rank: idx + 1 }));
-
     res.json({ success: true, data: ranked });
   } catch (err) {
     console.error('[Leaderboard]', err);

@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Lightbulb, Flag, ChevronDown, ChevronUp, Monitor, Zap, Server } from 'lucide-react'
+import { ArrowLeft, Lightbulb, Flag, ChevronDown, ChevronUp, Monitor, Zap, Server, ExternalLink } from 'lucide-react'
 import Sidebar from '../components/layout/Sidebar'
 import Terminal from '../components/lab/Terminal'
 import FlagSubmit from '../components/lab/FlagSubmit'
-import UnifiedTargetApp from '../components/lab/UnifiedTargetApp'
-import EcommerceApp from '../components/lab/EcommerceApp'
+
 import api from '../api/axios'
 
 const diffClass = d => ({'Easy':'badge-easy','Medium':'badge-medium','Hard':'badge-hard','Expert':'badge-expert'}[d]||'badge-easy')
@@ -197,7 +196,7 @@ export default function Lab() {
               <div className="lab-target-header" style={{ justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span style={{width:8,height:8,borderRadius:'50%',background: machineState === 'online' ? 'var(--accent)' : 'var(--text-muted)',display:'inline-block', boxShadow: machineState==='online' ? '0 0 10px var(--accent)' : 'none'}}/>
-                  {machineState === 'online' ? (challenge.slug.startsWith('ecom') ? `shop.vulncorp.internal (${machineIp})` : `target-system.internal.corp (${machineIp})`) : 'Target Machine Offline'}
+                  {machineState === 'online' ? `vulnshop.local (${machineIp})` : 'Target Machine Offline'}
                 </div>
                 <Server size={14} color={machineState === 'online' ? 'var(--accent)' : 'var(--text-muted)'} />
               </div>
@@ -239,16 +238,23 @@ export default function Lab() {
                       </div>
                       <div style={{ flex: 1, background: '#0f172a', borderRadius: '6px', padding: '0.35rem 1rem', fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '1rem', border: '1px solid #334155' }}>
                         <span style={{color: '#10b981'}}>🔒</span>
-                        {challenge.slug.startsWith('ecom') ? 'https://shop.vulncorp.internal' : 'https://target-system.internal.corp'}
+                        http://localhost:3000
                       </div>
+                      <button
+                        onClick={() => window.open('http://localhost:3000', '_blank')}
+                        title="Open in new tab"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', color: '#94a3b8' }}
+                      >
+                        <ExternalLink size={14} />
+                      </button>
                     </div>
                     {/* Simulated Browser Viewport */}
-                    <div style={{ flex: 1, background: '#fff', overflow: 'hidden', position: 'relative' }}>
-                      {challenge.slug.startsWith('ecom') ? (
-                        <EcommerceApp onFlagCaptured={handleFlagCaptured} />
-                      ) : (
-                        <UnifiedTargetApp onFlagCaptured={handleFlagCaptured} />
-                      )}
+                    <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+                      <iframe
+                        src={`http://localhost:3000/init?token=${localStorage.getItem('accessToken') || ''}`}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                        title="VulnShop"
+                      />
                     </div>
                   </div>
                 )}

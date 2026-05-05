@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vulnshop-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: vulnshop_pass
+      MYSQL_DATABASE: vulnshop
+      MYSQL_USER: vulnshop
+      MYSQL_PASSWORD: vulnshop_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pvulnshop_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: vulnshop-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: vulnshop_pass
+      DB_NAME: vulnshop
+      PORT: 3000
+      NODE_ENV: development
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

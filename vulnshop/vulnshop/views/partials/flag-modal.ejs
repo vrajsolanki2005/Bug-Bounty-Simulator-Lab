@@ -1,0 +1,78 @@
+<% if (typeof capturedFlag !== 'undefined' && capturedFlag) { %>
+<div id="flagModal" style="
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,0.75);
+  display:flex; align-items:center; justify-content:center;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+">
+  <div style="
+    background:#0d1117; border:2px solid #00ff88;
+    border-radius:12px; padding:2rem; max-width:520px; width:90%;
+    box-shadow:0 0 40px rgba(0,255,136,0.3);
+    position:relative;
+  ">
+    <!-- Close -->
+    <button onclick="document.getElementById('flagModal').remove()" style="
+      position:absolute; top:12px; right:16px;
+      background:none; border:none; color:#666; font-size:1.4rem; cursor:pointer;
+    ">✕</button>
+
+    <!-- Header -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:1.25rem;">
+      <div style="
+        width:48px; height:48px; border-radius:50%;
+        background:rgba(0,255,136,0.15); border:2px solid #00ff88;
+        display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+      ">🎯</div>
+      <div>
+        <div style="color:#00ff88; font-weight:800; font-size:1.1rem;">Vulnerability Exploited!</div>
+        <div style="color:#94a3b8; font-size:0.85rem;"><%= capturedFlag.label %></div>
+      </div>
+    </div>
+
+    <!-- Flag box -->
+    <div style="margin-bottom:1rem;">
+      <div style="color:#94a3b8; font-size:0.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Your Flag</div>
+      <div style="
+        background:#161b22; border:1px solid #30363d; border-radius:8px;
+        padding:0.75rem 1rem; display:flex; align-items:center; gap:10px;
+      ">
+        <code id="flagValue" style="
+          color:#00ff88; font-family:monospace; font-size:0.9rem;
+          flex:1; word-break:break-all;
+        "><%= capturedFlag.flag %></code>
+        <button onclick="copyFlag()" id="copyBtn" style="
+          background:#00ff88; color:#0d1117; border:none; border-radius:6px;
+          padding:6px 14px; font-weight:700; font-size:0.8rem; cursor:pointer;
+          white-space:nowrap; flex-shrink:0;
+        ">Copy</button>
+      </div>
+    </div>
+
+    <!-- Submit link -->
+    <a href="<%= process.env.CLIENT_URL || 'http://localhost:5173' %>/challenges" target="_blank" style="
+      display:block; width:100%; text-align:center;
+      background:linear-gradient(135deg,#00ff88,#00cc6a);
+      color:#0d1117; font-weight:800; font-size:0.95rem;
+      padding:0.75rem; border-radius:8px; text-decoration:none;
+      margin-bottom:0.75rem; box-sizing:border-box;
+    ">Submit Flag on Lab Platform →</a>
+
+    <p style="color:#64748b; font-size:0.75rem; text-align:center; margin:0;">
+      Copy the flag above and paste it in the Flag Submit box on the lab page.
+    </p>
+  </div>
+</div>
+
+<script>
+function copyFlag() {
+  const flag = document.getElementById('flagValue').innerText;
+  navigator.clipboard.writeText(flag).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.style.background = '#00cc6a';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.background = '#00ff88'; }, 2000);
+  });
+}
+</script>
+<% } %>

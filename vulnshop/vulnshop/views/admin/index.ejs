@@ -1,0 +1,237 @@
+<%- include('../partials/header') %>
+
+<div class="admin-page">
+  <div class="admin-header">
+    <h1>⚙️ Admin Panel</h1>
+    <div class="admin-meta">
+      <span>Logged in as: <strong><%= user.username %></strong></span>
+      <span class="bypass-badge">Access: <%= bypassMethod %></span>
+    </div>
+  </div>
+
+  <!-- Admin Flag -->
+  <div class="flag-banner">
+    🎯 <strong>Admin Panel Access!</strong>
+    <code><%= adminFlag %></code><br>
+    <small>Access method: <%= bypassMethod %> | Try: <code>?admin=true</code> or header <code>X-Admin-Override: supersecret2024</code></small>
+  </div>
+
+  <!-- Bypass hints -->
+  <div class="hint-box" style="margin-bottom:20px">
+    <h4>💡 Admin Bypass Methods</h4>
+    <ul>
+      <li><strong>Query Param:</strong> <code><a href="/admin?admin=true">/admin?admin=true</a></code> (while logged in as any user)</li>
+      <li><strong>Header:</strong> <code>X-Admin-Override: supersecret2024</code></li>
+      <li><strong>Mass Assignment:</strong> Register with <code>role=admin</code> in POST body</li>
+      <li><strong>SQL Injection:</strong> Login as admin using <code>admin'--</code></li>
+    </ul>
+  </div>
+
+  <!-- Stats -->
+  <div class="admin-stats-grid">
+    <div class="admin-stat-card">
+      <i class="fas fa-users"></i>
+      <div class="stat-value"><%= stats.total_users %></div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="admin-stat-card">
+      <i class="fas fa-box"></i>
+      <div class="stat-value"><%= stats.total_products %></div>
+      <div class="stat-label">Products</div>
+    </div>
+    <div class="admin-stat-card">
+      <i class="fas fa-shopping-bag"></i>
+      <div class="stat-value"><%= stats.total_orders %></div>
+      <div class="stat-label">Orders</div>
+    </div>
+    <div class="admin-stat-card">
+      <i class="fas fa-dollar-sign"></i>
+      <div class="stat-value">$<%= parseFloat(stats.total_revenue || 0).toFixed(0) %></div>
+      <div class="stat-label">Revenue</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <button class="tab-btn active" onclick="showTab('users')">Users</button>
+    <button class="tab-btn" onclick="showTab('products')">Products</button>
+    <button class="tab-btn" onclick="showTab('orders')">Orders</button>
+    <button class="tab-btn" onclick="showTab('server')">Server Info</button>
+  </div>
+
+  <!-- Users Tab -->
+  <div id="tab-users" class="tab-content active">
+    <div class="admin-section-header">
+      <h2>User Management</h2>
+      <small>⚠️ Passwords shown in plaintext — intentional vulnerability</small>
+    </div>
+    <div class="table-responsive">
+      <table class="admin-table">
+        <thead>
+          <tr><th>ID</th><th>Username</th><th>Email</th><th>Password (plaintext!)</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <% users.forEach(u => { %>
+          <tr class="<%= u.role === 'admin' ? 'admin-row' : '' %>">
+            <td><%= u.id %></td>
+            <td><strong><%= u.username %></strong></td>
+            <td><%= u.email %></td>
+            <td><code class="sensitive"><%= u.password %></code></td>
+            <td>
+              <span class="role-badge role-<%= u.role %>"><%= u.role %></span>
+            </td>
+            <td><%= new Date(u.created_at).toLocaleDateString() %></td>
+            <td>
+              <select onchange="updateRole(<%= u.id %>, this.value)" class="role-select">
+                <option value="user" <%= u.role==='user'?'selected':'' %>>user</option>
+                <option value="admin" <%= u.role==='admin'?'selected':'' %>>admin</option>
+              </select>
+              <% if (u.role !== 'admin') { %>
+              <form action="/admin/users/<%= u.id %>/delete" method="POST" style="display:inline">
+                <button type="submit" class="btn-danger btn-sm" onclick="return confirm('Delete user?')">Delete</button>
+              </form>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div class="admin-info-box">
+      💡 <a href="/admin/users" target="_blank">GET /admin/users</a> returns all users with plaintext passwords (no pagination, no auth check beyond admin role).
+    </div>
+  </div>
+
+  <!-- Products Tab -->
+  <div id="tab-products" class="tab-content">
+    <div class="admin-section-header">
+      <h2>Product Management</h2>
+      <button class="btn-amazon btn-sm" onclick="document.getElementById('addProductForm').style.display='block'">+ Add Product</button>
+    </div>
+
+    <div id="addProductForm" class="add-form" style="display:none">
+      <h3>Add New Product</h3>
+      <form action="/admin/products/add" method="POST" class="admin-form">
+        <div class="form-row">
+          <input type="text" name="name" placeholder="Product name" class="form-input" required>
+          <input type="number" name="price" placeholder="Price" class="form-input" step="0.01" required>
+        </div>
+        <div class="form-row">
+          <input type="number" name="original_price" placeholder="Original price" class="form-input" step="0.01">
+          <input type="number" name="stock" placeholder="Stock qty" class="form-input">
+        </div>
+        <div class="form-row">
+          <select name="category" class="form-input">
+            <option>Electronics</option><option>Fashion</option><option>Books</option>
+            <option>Home & Kitchen</option><option>Sports & Gaming</option><option>Toys & Games</option>
+          </select>
+          <input type="text" name="image_url" placeholder="Image URL" class="form-input">
+        </div>
+        <textarea name="description" placeholder="Description" class="form-input" rows="3"></textarea>
+        <button type="submit" class="btn-amazon">Add Product</button>
+        <button type="button" onclick="document.getElementById('addProductForm').style.display='none'" class="btn-secondary">Cancel</button>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="admin-table">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <% products.forEach(p => { %>
+          <tr>
+            <td><%= p.id %></td>
+            <td><a href="/products/<%= p.id %>"><%= p.name.substring(0,40) %></a></td>
+            <td><%= p.category %></td>
+            <td>$<%= parseFloat(p.price).toFixed(2) %></td>
+            <td class="<%= p.stock < 10 ? 'low-stock' : '' %>"><%= p.stock %></td>
+            <td>
+              <form action="/admin/products/<%= p.id %>/delete" method="POST" style="display:inline">
+                <button type="submit" class="btn-danger btn-sm" onclick="return confirm('Delete?')">Delete</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Orders Tab -->
+  <div id="tab-orders" class="tab-content">
+    <h2>Recent Orders</h2>
+    <div class="table-responsive">
+      <table class="admin-table">
+        <thead>
+          <tr><th>ID</th><th>User</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <% orders.forEach(o => { %>
+          <tr>
+            <td><a href="/orders/<%= o.id %>">#<%= o.id %></a></td>
+            <td><%= o.username %></td>
+            <td>$<%= parseFloat(o.total).toFixed(2) %></td>
+            <td>
+              <select onchange="updateOrderStatus(<%= o.id %>, this.value)" class="role-select">
+                <option <%= o.status==='Processing'?'selected':'' %>>Processing</option>
+                <option <%= o.status==='Shipped'?'selected':'' %>>Shipped</option>
+                <option <%= o.status==='Delivered'?'selected':'' %>>Delivered</option>
+                <option <%= o.status==='Cancelled'?'selected':'' %>>Cancelled</option>
+              </select>
+            </td>
+            <td><%= new Date(o.created_at).toLocaleDateString() %></td>
+            <td><a href="/orders/<%= o.id %>" class="btn-secondary btn-sm">View</a></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Server Info Tab -->
+  <div id="tab-server" class="tab-content">
+    <h2>Server Information</h2>
+    <div class="hint-box">
+      ⚠️ This endpoint exposes sensitive server configuration including session secrets.
+      <a href="/admin/server-info" target="_blank">View raw JSON →</a>
+    </div>
+    <table class="info-table">
+      <tr><td>Application</td><td>VulnShop v1.0.0</td></tr>
+      <tr><td>Framework</td><td>Express.js 4.18</td></tr>
+      <tr><td>Database</td><td>MySQL 8.0</td></tr>
+      <tr><td>Session Secret</td><td><code class="sensitive">vulnshop-super-secret-key-2024</code></td></tr>
+      <tr><td>Debug Endpoint</td><td><a href="/debug" target="_blank">/debug</a></td></tr>
+      <tr><td>Security Headers</td><td><span style="color:#dc3545">❌ None configured</span></td></tr>
+      <tr><td>CSRF Protection</td><td><span style="color:#dc3545">❌ Not implemented</span></td></tr>
+      <tr><td>Input Sanitization</td><td><span style="color:#dc3545">❌ Not implemented</span></td></tr>
+      <tr><td>Password Hashing</td><td><span style="color:#dc3545">❌ Stored in plaintext</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function updateRole(userId, role) {
+  fetch(`/admin/users/${userId}/role`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `role=${role}`
+  }).then(r => r.json()).then(d => d.success && location.reload());
+}
+function updateOrderStatus(orderId, status) {
+  fetch(`/admin/orders/${orderId}/status`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: `status=${encodeURIComponent(status)}`
+  }).then(r => r.json());
+}
+</script>
+
+<%- include('../partials/footer') %>
+<%- include('../partials/flag-modal') %>

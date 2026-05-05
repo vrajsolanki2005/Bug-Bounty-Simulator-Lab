@@ -1,0 +1,87 @@
+<%- include('../partials/header') %>
+
+<div class="orders-page">
+  <h1 class="page-title">Your Orders</h1>
+
+  <div class="orders-layout">
+    <!-- Sidebar -->
+    <aside class="orders-sidebar">
+      <h3>Your Account</h3>
+      <ul>
+        <li><a href="/profile"><i class="fas fa-user"></i> Account Settings</a></li>
+        <li><a href="/orders" class="active"><i class="fas fa-box"></i> Your Orders</a></li>
+        <li><a href="/profile"><i class="fas fa-map-marker-alt"></i> Addresses</a></li>
+        <li><a href="/profile"><i class="fas fa-credit-card"></i> Payment Methods</a></li>
+        <li><a href="/auth/logout"><i class="fas fa-sign-out-alt"></i> Sign Out</a></li>
+      </ul>
+    </aside>
+
+    <!-- Orders List -->
+    <div class="orders-main">
+      <!-- IDOR Hint -->
+      <div class="hint-box" style="margin-bottom:16px">
+        <h4>💡 IDOR Challenge Hint</h4>
+        <p>Order detail pages have <strong>no ownership check</strong>. Try accessing <a href="/orders/1">/orders/1</a> — even if it's not your order!</p>
+        <p>Sequential IDs mean order <code>#1</code> belongs to the admin and contains sensitive data.</p>
+      </div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% } %>
+
+      <% if (orders.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-box-open fa-3x" style="color:#ccc"></i>
+          <h2>No orders yet</h2>
+          <p>When you place an order, it will appear here.</p>
+          <a href="/products" class="btn-amazon">Shop now</a>
+        </div>
+      <% } else { %>
+        <div class="orders-filter">
+          <select class="form-input" style="width:auto">
+            <option>Orders placed in: Last 30 days</option>
+            <option>Last 3 months</option>
+            <option>2024</option>
+          </select>
+          <span><%= orders.length %> orders placed in past 30 days</span>
+        </div>
+
+        <% orders.forEach(order => { %>
+        <div class="order-card">
+          <div class="order-card-header">
+            <div class="order-meta">
+              <div><span class="meta-label">ORDER PLACED</span><br>
+                <%= new Date(order.created_at).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) %>
+              </div>
+              <div><span class="meta-label">TOTAL</span><br>$<%= parseFloat(order.total).toFixed(2) %></div>
+              <div><span class="meta-label">SHIP TO</span><br><%= (order.shipping_address || '').split(',')[0] %></div>
+            </div>
+            <div class="order-id-section">
+              <span class="meta-label">ORDER # <%= order.id %></span><br>
+              <a href="/orders/<%= order.id %>" class="order-detail-link">View order details</a> |
+              <a href="#" class="order-detail-link">Invoice</a>
+            </div>
+          </div>
+          <div class="order-card-body">
+            <div class="order-status">
+              <span class="status-badge status-<%= order.status.toLowerCase().replace(' ','') %>">
+                <%= order.status %>
+              </span>
+              <% if (order.tracking_number) { %>
+                <span class="tracking">Tracking: <%= order.tracking_number %></span>
+              <% } %>
+            </div>
+            <div class="order-actions">
+              <a href="/orders/<%= order.id %>" class="btn-secondary btn-sm">View Details</a>
+              <button class="btn-secondary btn-sm">Return Items</button>
+              <button class="btn-secondary btn-sm">Write a Review</button>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

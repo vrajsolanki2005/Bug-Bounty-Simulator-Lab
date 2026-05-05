@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, Award, Medal, Crown } from 'lucide-react'
+import { Trophy, Award, Medal, Crown, RefreshCw } from 'lucide-react'
 import Sidebar from '../components/layout/Sidebar'
 import api from '../api/axios'
+import { useAuth } from '../context/AuthContext'
 
 export default function Leaderboard() {
   const [board, setBoard] = useState([])
   const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
 
-  useEffect(() => {
-    api.get('/leaderboard').then(r => setBoard(r.data.data)).finally(() => setLoading(false))
-  }, [])
+  const fetchBoard = () => {
+    setLoading(true)
+    api.get('/leaderboard').then(r => setBoard(r.data.data)).catch(() => {}).finally(() => setLoading(false))
+  }
+
+  useEffect(() => { fetchBoard() }, [])
 
   const getRankIcon = (rank) => {
     if (rank === 1) return <Crown size={20} color="var(--yellow)" />
@@ -30,6 +35,9 @@ export default function Leaderboard() {
             </motion.div>
             <h1 style={{fontSize:'2rem', fontWeight:800}}>Global <span className="neon-text">Leaderboard</span></h1>
             <p className="text-muted mt-1">Compete with hackers worldwide. Earn points by solving challenges.</p>
+            <button className="btn btn-secondary btn-sm" style={{marginTop:'1rem'}} onClick={fetchBoard} disabled={loading}>
+              <RefreshCw size={14} style={{marginRight:4}} /> Refresh
+            </button>
           </div>
 
           {loading ? <div className="loading"><div className="spinner"/></div> : (
@@ -46,7 +54,7 @@ export default function Leaderboard() {
                 <tbody>
                   {board.map((u, i) => (
                     <motion.tr key={u.id} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{delay:i*0.05}}
-                      style={{borderBottom:'1px solid var(--border)', background: i<3 ? `rgba(0,255,136,0.0${3-i})` : 'transparent'}}
+                      style={{borderBottom:'1px solid var(--border)', background: user?.username === u.username ? 'rgba(0,255,136,0.08)' : i<3 ? `rgba(0,255,136,0.0${3-i})` : 'transparent'}}
                     >
                       <td style={{padding:'1rem 1.5rem', fontWeight:700}}>{getRankIcon(u.rank)}</td>
                       <td style={{padding:'1rem 1.5rem'}}>

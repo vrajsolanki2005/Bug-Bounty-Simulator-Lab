@@ -1,0 +1,16 @@
+<%- include('partials/header') %>
+
+<div class="error-page">
+  <div class="error-code"><%= code || 500 %></div>
+  <h1><%= title %></h1>
+  <p class="error-msg"><%= message %></p>
+  <% if (hint) { %>
+    <div class="error-hint"><%= hint %></div>
+  <% } %>
+  <div class="error-actions">
+    <a href="/" class="btn-primary">Go to Homepage</a>
+    <a href="javascript:history.back()" class="btn-secondary">Go Back</a>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

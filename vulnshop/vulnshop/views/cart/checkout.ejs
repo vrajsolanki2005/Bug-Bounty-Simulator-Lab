@@ -1,0 +1,145 @@
+<%- include('../partials/header') %>
+
+<div class="checkout-page">
+  <h1 class="page-title"><i class="fas fa-lock"></i> Secure Checkout</h1>
+
+  <% if (businessLogicFlag) { %>
+  <div class="flag-banner">
+    🎯 <strong>Business Logic Flaw!</strong> <code><%= businessLogicFlag %></code>
+  </div>
+  <% } %>
+
+  <div class="checkout-layout">
+    <!-- Left: Address & Payment -->
+    <div class="checkout-main">
+
+      <!-- Shipping Address -->
+      <div class="checkout-section">
+        <div class="section-header">
+          <span class="section-num">1</span>
+          <h2>Shipping address</h2>
+        </div>
+        <div class="section-body">
+          <% if (userInfo && userInfo.address) { %>
+            <div class="saved-address">
+              <strong><%= userInfo.full_name %></strong><br>
+              <%= userInfo.address %><br>
+              <%= userInfo.phone %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Payment Method -->
+      <div class="checkout-section">
+        <div class="section-header">
+          <span class="section-num">2</span>
+          <h2>Payment method</h2>
+        </div>
+        <div class="section-body">
+          <div class="payment-options">
+            <label class="payment-option">
+              <input type="radio" name="payment_method" value="visa" checked>
+              <i class="fab fa-cc-visa" style="font-size:28px;color:#1A1F71"></i>
+              Visa ending in 4242
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="payment_method" value="mastercard">
+              <i class="fab fa-cc-mastercard" style="font-size:28px;color:#EB001B"></i>
+              Mastercard ending in 5555
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="payment_method" value="new_card">
+              <i class="fas fa-credit-card"></i> Add a new card
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review Items -->
+      <div class="checkout-section">
+        <div class="section-header">
+          <span class="section-num">3</span>
+          <h2>Review items and shipping</h2>
+        </div>
+        <div class="section-body">
+          <% items.forEach(item => { %>
+          <div class="checkout-item">
+            <img src="<%= item.image_url %>" alt="<%= item.name %>"
+              onerror="this.src='https://picsum.photos/seed/<%= item.product_id %>/80/80'" class="checkout-item-img">
+            <div class="checkout-item-info">
+              <div class="checkout-item-name"><%= item.name %></div>
+              <div class="checkout-item-price">$<%= parseFloat(item.price).toFixed(2) %> × <%= item.quantity %></div>
+              <div class="in-stock-label">In Stock</div>
+              <div class="shipping-estimate">Estimated delivery: 3-5 business days</div>
+            </div>
+            <div class="checkout-item-total">$<%= (item.price * item.quantity).toFixed(2) %></div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right: Order Summary -->
+    <div class="checkout-summary">
+      <!-- VULNERABILITY: Total sent from client to server without server-side recalculation -->
+      <!-- Attacker can modify the 'total' hidden field via DevTools to pay less -->
+      <form action="/cart/checkout" method="POST" id="checkoutForm">
+        <input type="hidden" name="shipping_address" value="<%= userInfo ? userInfo.address : '123 Main St' %>">
+        <input type="hidden" name="payment_method" value="visa">
+        <input type="hidden" name="payment_last4" value="4242">
+        <!-- VULNERABILITY: total taken from client -->
+        <input type="hidden" name="total" id="totalInput" value="<%= total.toFixed(2) %>">
+
+        <div class="summary-box">
+          <button type="submit" class="btn-full btn-amazon btn-place-order">
+            Place your order
+          </button>
+          <p class="order-legal">
+            By placing your order, you agree to VulnShop's privacy notice and conditions of use.
+          </p>
+
+          <h3>Order Summary</h3>
+          <div class="summary-row">
+            <span>Items (<%= items.reduce((s,i) => s + i.quantity, 0) %>):</span>
+            <span>$<%= subtotal.toFixed(2) %></span>
+          </div>
+          <% if (discount > 0) { %>
+          <div class="summary-row discount-row">
+            <span>Coupon discount (<%= coupon ? coupon.code : '' %>):</span>
+            <span>-$<%= discount.toFixed(2) %></span>
+          </div>
+          <% } %>
+          <div class="summary-row">
+            <span>Shipping & handling:</span>
+            <span><%= shipping === 0 ? 'FREE' : '$' + shipping.toFixed(2) %></span>
+          </div>
+          <div class="summary-row">
+            <span>Estimated tax (8%):</span>
+            <span>$<%= tax.toFixed(2) %></span>
+          </div>
+          <hr>
+          <div class="summary-total-row">
+            <span>Order total:</span>
+            <span class="total-price" id="displayTotal">$<%= total.toFixed(2) %></span>
+          </div>
+
+          <% if (businessLogicFlag) { %>
+          <div class="flag-inline">
+            🏁 <code><%= businessLogicFlag %></code>
+          </div>
+          <% } %>
+        </div>
+      </form>
+
+      <div class="hint-box">
+        <h4>💡 Challenge Hint</h4>
+        <p>The <code>total</code> hidden field is sent to the server without server-side validation.</p>
+        <p>Try modifying it in DevTools to <code>0.01</code> before submitting!</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
