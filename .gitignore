@@ -72,3 +72,9 @@ database/data/
 # Uploads
 server/uploads/
 client/public/uploads/
+public/uploads/
+
+# VulnShop
+vulnshop/.env
+vulnshop/vulnshop/.env
+vulnshop/vulnshop/challenges-config.js
