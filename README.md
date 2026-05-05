@@ -22,10 +22,10 @@
 ```
 10.10.10.0/24  (lab_net — isolated bridge)
 │
-├── 10.10.10.2   openvpn      OpenVPN server (external VPN access)
-├── 10.10.10.5   vuln-target  Vulnerable Node.js/React e-commerce app
-├── 10.10.10.6   db           MySQL — flags + vulnerable data
-└── 10.10.10.7   attackbox    Kali Linux XFCE via NoVNC (:8080)
+├── 10.10.10.2   openvpn      OpenVPN server          → :1194/udp
+├── 10.10.10.5   vuln-target  Vulnerable Node.js/React → :80
+├── 10.10.10.6   db           MySQL 8.0 — flags + data
+└── 10.10.10.7   attackbox    Kali Linux XFCE via NoVNC → :8080, SSH :2222
 ```
 
 ---
@@ -53,12 +53,19 @@ Each exploit yields a `flag{...}` string — submit it to the Lab Management API
 cd infrastructure
 docker-compose up -d --build
 
-# 2. Open the AttackBox in your browser
+# 2. Open the AttackBox
 open http://localhost:8080/vnc.html
 
 # 3. Inside Kali, navigate to the target
 firefox http://10.10.10.5
 ```
+
+### Default Credentials
+
+| Service | User | Password |
+|---|---|---|
+| AttackBox (Kali / SSH) | `hacker` | `hacker` |
+| MySQL | `root` | `supersecret` |
 
 ### VPN Access (Optional)
 
@@ -76,38 +83,67 @@ chmod +x infrastructure/openvpn-setup.sh
 
 ```bash
 # Server
-cd server && cp .env.example .env
-npm install && npm run seed && npm run dev
+cd server
+cp .env.example .env   # fill in DB_PASS, JWT_SECRET, FLAG_SECRET
+npm install
+npm run seed
+npm run dev            # http://localhost:5000
 
 # Client
 cd client
-npm install && npm run dev
+npm install
+npm run dev            # http://localhost:5173
 ```
+
+### Environment Variables (`server/.env`)
+
+| Variable | Description |
+|---|---|
+| `PORT` | API port (default `5000`) |
+| `DB_HOST` / `DB_PORT` / `DB_NAME` | MySQL connection |
+| `DB_USER` / `DB_PASS` | MySQL credentials |
+| `JWT_SECRET` / `JWT_REFRESH_SECRET` | JWT signing keys |
+| `JWT_EXPIRES_IN` | Token TTL (default `7d`) |
+| `FLAG_SECRET` | HMAC secret for flag generation |
+| `NMAP_PATH` | Path to nmap binary |
+| `CLIENT_URL` | Frontend URL for CORS (default `http://localhost:5173`) |
 
 ---
 
-##  Tech Stack
+## Tech Stack
 
 | Layer | Tools |
 |---|---|
-| Frontend | React 18, Vite, Tailwind CSS, Framer Motion, Socket.IO |
-| Backend | Node.js, Express, MySQL2, JWT, Helmet, Multer, Dockerode |
-| Infrastructure | Docker Compose, Kali Linux, OpenVPN, NoVNC |
+| Frontend | React 18, Vite, Tailwind CSS, Framer Motion, React Router, Socket.IO Client, Axios, Lucide |
+| Backend | Node.js, Express, MySQL2, JWT, bcryptjs, Helmet, Multer, Dockerode, Socket.IO, node-nmap |
+| Infrastructure | Docker Compose, MySQL 8.0, Kali Linux, OpenVPN, NoVNC |
 
 ---
 
-##  Project Structure
+## Project Structure
 
 ```
-├── client/          React frontend (Vite)
-├── server/          Node.js backend (Express + MySQL)
-│   └── database/    Schema & seed scripts
-└── infrastructure/  Docker Compose, Dockerfiles, OpenVPN
+├── client/                  React frontend (Vite)
+│   └── src/
+│       ├── api/             Axios API clients
+│       ├── components/      Shared UI components
+│       ├── context/         React context providers
+│       ├── pages/           Route-level page components
+│       └── styles/          Global styles
+├── server/                  Node.js backend (Express + MySQL)
+│   ├── src/
+│   │   ├── config/          DB & app config
+│   │   ├── middleware/      Auth, rate-limit, error handlers
+│   │   ├── routes/          API route definitions
+│   │   ├── services/        Business logic
+│   │   └── sockets/         Socket.IO event handlers
+│   └── database/            Schema & seed scripts
+└── infrastructure/          Docker Compose, Dockerfiles, OpenVPN
 ```
 
 ---
 
-##  Warning
+## ⚠️ Warning
 
 > This lab contains **intentionally vulnerable software**.
 > Never expose it to the public internet. Run only in an isolated local or private network.
